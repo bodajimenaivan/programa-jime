@@ -13,6 +13,7 @@ import { Sheet } from "@/components/ui/sheet";
 import { LogoMark } from "@/components/ui/logo";
 import { STATUS_VAR, StatusPill, Thumb } from "@/components/post/bits";
 import { MediaDownloads } from "@/components/post/downloads";
+import { CopyButton } from "@/components/ui/copy-button";
 import { PostPreview } from "@/components/post/preview";
 import { CommentList } from "@/components/post/comment-thread";
 import { useToast } from "@/components/ui/toast";
@@ -398,6 +399,9 @@ function PortalItem({
     <li id={`pieza-${item.id}`} className={cn("scroll-mt-32", highlight && "rounded-[26px] outline-2 outline-offset-8 outline-accent")}>
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
+          {item.title && item.title !== "Sin título" && (
+            <h3 className="mb-1 font-display text-[19px] font-bold leading-snug tracking-[-0.01em]">{item.title}</h3>
+          )}
           <p className="text-[13px] font-semibold first-letter:uppercase text-ink-2">
             {rel && <span className="text-accent">{rel} · </span>}
             {formatDayLong(item.date)}
@@ -423,6 +427,16 @@ function PortalItem({
         share={token}
         className={cn(item.format !== "post" && item.format !== "carousel" && "mx-auto max-w-[380px]")}
       />
+
+      {item.caption.trim() && (
+        <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface px-4 py-3">
+          <div className="min-w-0">
+            <p className="text-[13px] font-semibold text-ink-2">Texto de la publicación</p>
+            <p className="truncate text-[12.5px] text-muted">{item.caption.replace(/\s+/g, " ")}</p>
+          </div>
+          <CopyButton text={item.caption} label="Copiar texto" className="shrink-0" />
+        </div>
+      )}
 
       <MediaDownloads
         className="mt-3"

@@ -17,6 +17,7 @@ import { MediaDownloads } from "@/components/post/downloads";
 import { MediaTray, type TrayItem } from "@/components/post/media-tray";
 import { CommentThread } from "@/components/post/comment-thread";
 import { useToast } from "@/components/ui/toast";
+import { CopyButton } from "@/components/ui/copy-button";
 import { deletePost, duplicatePost, savePost, savePostMetrics } from "../../actions/posts";
 
 type Initial = {
@@ -198,6 +199,20 @@ export function PostEditor({
       <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-8 px-5 pb-32 pt-6 lg:grid-cols-[minmax(0,1fr)_400px] lg:px-8 lg:pb-16 lg:pt-8">
         {/* Formulario */}
         <div className={cn("space-y-7", tab !== "edit" && "hidden lg:block")}>
+          <div>
+            <label className="label" htmlFor="title">
+              Título <span className="font-normal text-muted">(lo ve el cliente, para ubicar la pieza rápido)</span>
+            </label>
+            <input
+              id="title"
+              className="field text-[16px] font-semibold"
+              value={title}
+              maxLength={120}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Ej. Promo 2x1 martes · Reel lanzamiento"
+            />
+          </div>
+
           <Section label="Formato">
             <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 lg:mx-0 lg:flex-wrap lg:px-0">
               {FORMAT_ORDER.map((f) => (
@@ -212,7 +227,7 @@ export function PostEditor({
             <MediaTray format={format} items={items} setItems={setItems} />
           </Section>
 
-          <Section label="Copy" hint={`${caption.length.toLocaleString("es-AR")}/${CAPTION_LIMIT.toLocaleString("es-AR")} · ${hashtags} hashtags`}>
+          <Section label="Texto de la publicación" action={<CopyButton text={caption} label="Copiar texto" />}>
             <textarea
               className="field min-h-[150px] resize-y leading-relaxed"
               value={caption}
@@ -220,6 +235,9 @@ export function PostEditor({
               onChange={(e) => setCaption(e.target.value)}
               placeholder="Escribí el texto que va a acompañar la publicación…"
             />
+            <p className="mt-1.5 text-right text-[12px] tabular-nums text-muted">
+              {caption.length.toLocaleString("es-AR")}/{CAPTION_LIMIT.toLocaleString("es-AR")} · {hashtags} hashtags
+            </p>
           </Section>
 
           <div className="grid grid-cols-2 gap-3">
@@ -279,17 +297,6 @@ export function PostEditor({
           </Section>
 
           <div>
-            <label className="label" htmlFor="title">Nombre interno</label>
-            <input
-              id="title"
-              className="field"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Ej. Lanzamiento otoño · reel 1"
-            />
-          </div>
-
-          <div>
             <label className="label" htmlFor="notes">
               Notas para el equipo <span className="font-normal text-muted">(el cliente no las ve)</span>
             </label>
@@ -345,12 +352,13 @@ export function PostEditor({
   );
 }
 
-function Section({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function Section({ label, hint, action, children }: { label: string; hint?: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section>
-      <div className="mb-2.5 flex items-baseline justify-between gap-2">
+      <div className="mb-2.5 flex min-h-8 items-center justify-between gap-2">
         <h2 className="text-[13px] font-semibold text-ink-2">{label}</h2>
         {hint && <span className="text-[12px] tabular-nums text-muted">{hint}</span>}
+        {action}
       </div>
       {children}
     </section>
