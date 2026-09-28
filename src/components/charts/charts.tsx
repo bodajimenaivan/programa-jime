@@ -250,12 +250,15 @@ export function ColumnChart({
 
 /** Mini tendencia para las tarjetas: gris, con el último punto en acento. */
 export function Sparkline({ values, width = 84, height = 28 }: { values: (number | null)[]; width?: number; height?: number }) {
-  const nums = values.map((v) => v ?? 0);
-  const max = Math.max(...nums, 1);
+  // Solo meses con datos; con menos de dos puntos no hay tendencia que mostrar.
+  const pts0 = values.map((v, i) => [i, v] as const).filter((p): p is readonly [number, number] => p[1] !== null);
+  if (pts0.length < 2) return null;
+  const nums = pts0.map((p) => p[1]);
+  const max = Math.max(...nums);
   const min = Math.min(...nums);
   const span = max - min || 1;
-  const pts = nums.map((v, i) => [(i / Math.max(1, nums.length - 1)) * (width - 6) + 3, height - 3 - ((v - min) / span) * (height - 6)]);
-  if (pts.length === 0) return null;
+  const n = Math.max(1, values.length - 1);
+  const pts = pts0.map(([i, v]) => [(i / n) * (width - 6) + 3, height - 3 - ((v - min) / span) * (height - 6)]);
   return (
     <svg width={width} height={height} aria-hidden>
       <path d={pts.map((p, i) => `${i ? "L" : "M"}${p[0]},${p[1]}`).join("")} fill="none" stroke="var(--c-deemph)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />

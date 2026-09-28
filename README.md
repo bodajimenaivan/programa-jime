@@ -72,6 +72,16 @@ Copiá `.env.example` a `.env.local` y ajustá lo que necesites.
 | `DEFAULT_TIMEZONE` | `America/Argentina/Buenos_Aires` | Zona horaria de los espacios nuevos (define qué día es “hoy”). |
 | `INSECURE_COOKIES` | — | Ponelo en `1` solo si corrés en producción sin HTTPS (por ejemplo, en una red local). |
 
+## Versión PHP para hosting compartido (Hostinger)
+
+Si tu hosting solo corre PHP (por ejemplo, un plan de WordPress de Hostinger), usá la versión de `hostinger/`. Tiene las mismas pantallas, con el backend en PHP y MySQL.
+
+- **Instalación paso a paso:** [`hostinger/INSTALAR.md`](hostinger/INSTALAR.md).
+- **Armar el ZIP:** `npm run build:hostinger` genera `hostinger/dist/grilla-hostinger.zip`. Si existe `hostinger/config.local.php` (está ignorado por git), va adentro como `config.php`.
+- **Subidas:** los archivos se mandan en partes de 4 MB, cada una como POST, así no chocan con los límites de PHP del hosting. Si se corta la conexión, la subida sigue desde donde quedó.
+- **Cuentas:** solo se puede crear la primera cuenta; después el registro se cierra solo.
+- **Probar en local:** `php -S localhost:8080 -t hostinger/public hostinger/dev-router.php` (con un `hostinger/public/config.php` que apunte a un MySQL local).
+
 ## Dónde publicarlo
 
 Los archivos se guardan en disco, así que necesita un servidor con **disco persistente**: un VPS, Railway, Fly.io o Render con volumen. Hay un `Dockerfile` que guarda todo en `/data`; montá ahí un volumen.

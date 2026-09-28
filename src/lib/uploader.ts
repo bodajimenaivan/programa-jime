@@ -1,9 +1,11 @@
 "use client";
 
 import * as tus from "tus-js-client";
+import { runtime, url } from "./base";
 
-export const MAX_UPLOAD_BYTES = Number(process.env.NEXT_PUBLIC_MAX_UPLOAD_MB || 1024) * 1024 * 1024;
-const CHUNK = 8 * 1024 * 1024;
+export const MAX_UPLOAD_BYTES = Number(runtime.maxMb || process.env.NEXT_PUBLIC_MAX_UPLOAD_MB || 1024) * 1024 * 1024;
+// En hosting compartido las partes van más chicas (4 MB) para no chocar con límites de PHP.
+const CHUNK = (runtime.chunkMb || 8) * 1024 * 1024;
 
 export type Probe = { width?: number; height?: number; duration?: number; poster?: Blob };
 
@@ -79,8 +81,10 @@ export function uploadFile(
   let upload: tus.Upload;
   const promise = new Promise<string>((resolve, reject) => {
     upload = new tus.Upload(file, {
-      endpoint: "/api/uploads",
+      endpoint: url("/api/uploads"),
       chunkSize: CHUNK,
+      // Algunos hostings bloquean PATCH: se manda como POST con X-HTTP-Method-Override.
+      overridePatchMethod: Boolean(runtime.overridePatch),
       retryDelays: [0, 1000, 3000, 5000, 10000, 20000],
       removeFingerprintOnSuccess: true,
       metadata: meta,

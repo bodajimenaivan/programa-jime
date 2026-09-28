@@ -1,0 +1,11 @@
+@import "@fontsource-variable/bricolage-grotesque/index.css";
+@import "@fontsource-variable/figtree/index.css";
+@import "../../../src/app/globals.css";
+@source "../../../src";
+@source "./";
+
+/* Fuentes incluidas en la app (no dependen de Google Fonts). */
+:root {
+  --font-display-face: "Bricolage Grotesque Variable";
+  --font-body: "Figtree Variable";
+}

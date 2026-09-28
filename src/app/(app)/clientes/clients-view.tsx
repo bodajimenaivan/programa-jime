@@ -11,6 +11,7 @@ import { ClientForm } from "@/components/clients/client-form";
 import { PageHeader } from "@/components/ui/page-header";
 import { archiveClient, resetShareLink, switchClient } from "../actions/clients";
 import { cn } from "@/lib/utils";
+import { absUrl, url } from "@/lib/base";
 
 type Row = {
   id: string;
@@ -89,7 +90,7 @@ function ClientCard({ client: c, active, onEdit, onOpen }: { client: Row; active
   const [copied, setCopied] = useState(false);
   const [origin, setOrigin] = useState("");
   const [busy, start] = useTransition();
-  useEffect(() => setOrigin(window.location.origin), []);
+  useEffect(() => setOrigin(absUrl("")), []);
   const link = `${origin}/p/${c.shareToken}`;
 
   const copy = async () => {
@@ -141,7 +142,7 @@ function ClientCard({ client: c, active, onEdit, onOpen }: { client: Row; active
           <button className="btn-primary btn-sm" onClick={copy}>
             {copied ? <Check className="size-4" /> : <Copy className="size-4" />} {copied ? "Copiado" : "Compartir"}
           </button>
-          <a className="btn-ghost btn-sm" href={`/p/${c.shareToken}`} target="_blank" rel="noreferrer">
+          <a className="btn-ghost btn-sm" href={url(`/p/${c.shareToken}`)} target="_blank" rel="noreferrer">
             <ExternalLink className="size-4" /> Ver como cliente
           </a>
           <button

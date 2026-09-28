@@ -1,3 +1,5 @@
+import { url } from "./base";
+
 export function cn(...parts: (string | false | null | undefined)[]) {
   return parts.filter(Boolean).join(" ");
 }
@@ -35,5 +37,5 @@ export function formatDuration(sec: number) {
 }
 
 export function mediaUrl(id: string, share?: string) {
-  return share ? `/api/media/${id}?s=${encodeURIComponent(share)}` : `/api/media/${id}`;
+  return url(share ? `/api/media/${id}?s=${encodeURIComponent(share)}` : `/api/media/${id}`);
 }

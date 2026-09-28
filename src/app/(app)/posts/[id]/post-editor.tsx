@@ -8,6 +8,7 @@ import type { Client, Comment, Network, PostFormat, PostMetrics, PostStatus } fr
 import type { MediaDTO } from "@/lib/queries";
 import { CAPTION_LIMIT, FORMAT_LABEL, FORMAT_ORDER, NETWORK_LABEL, NETWORK_ORDER, STATUS_LABEL, STATUS_ORDER } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { absUrl } from "@/lib/base";
 import { ClientAvatar } from "@/components/ui/avatar";
 import { NetworkIcon } from "@/components/ui/network-icon";
 import { FormatIcon, StatusDot } from "@/components/post/bits";
@@ -135,7 +136,7 @@ export function PostEditor({
   const askApproval = async () => {
     const savedId = await save("review");
     if (!savedId) return;
-    const url = `${window.location.origin}/p/${client.shareToken}?pieza=${savedId}`;
+    const url = absUrl(`/p/${client.shareToken}?pieza=${savedId}`);
     try {
       if (navigator.share && window.matchMedia("(pointer: coarse)").matches) {
         await navigator.share({ title: `Para aprobar: ${title || "nueva pieza"}`, url });

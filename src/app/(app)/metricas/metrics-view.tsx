@@ -5,11 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, Download, FileText, Minus, Upload } from "lucide-react";
 import type { Network } from "@/lib/db/schema";
-import type { loadMetrics, MonthRow } from "@/lib/metrics";
+import type { MetricsData, MonthRow } from "@/lib/metrics-shape";
 import { NETWORK_LABEL } from "@/lib/constants";
 import { NETWORK_COLOR, shortMonth } from "@/lib/chart-colors";
 import { monthLabel, shiftMonth, MONTHS, formatDayShort } from "@/lib/dates";
 import { cn, formatNumber } from "@/lib/utils";
+import { url } from "@/lib/base";
 import { PageHeader } from "@/components/ui/page-header";
 import { NetworkIcon } from "@/components/ui/network-icon";
 import { Sheet } from "@/components/ui/sheet";
@@ -17,7 +18,7 @@ import { FormatTag, Thumb } from "@/components/post/bits";
 import { ColumnChart, LineChart, Sparkline } from "@/components/charts/charts";
 import { saveMonthMetrics, type MetricInput } from "../actions/metrics";
 
-type Data = ReturnType<typeof loadMetrics>;
+type Data = MetricsData;
 
 export function MetricsView({
   clientId,
@@ -200,7 +201,7 @@ export function MetricsView({
 
       <Sheet open={exportOpen} onClose={() => setExportOpen(false)} title="Exportar">
         <div className="space-y-2">
-          <a href={`/metricas/reporte?mes=${month}`} className="flex items-center gap-3 rounded-2xl border border-line p-3.5 hover:border-ink">
+          <a href={url(`/metricas/reporte?mes=${month}`)} className="flex items-center gap-3 rounded-2xl border border-line p-3.5 hover:border-ink">
             <span className="grid size-10 place-items-center rounded-xl bg-sunken">
               <FileText className="size-5" />
             </span>
@@ -209,7 +210,7 @@ export function MetricsView({
               <span className="block text-[13px] text-muted">Página lista para imprimir o guardar como PDF</span>
             </span>
           </a>
-          <a href={`/api/export/metricas?mes=${month}`} className="flex items-center gap-3 rounded-2xl border border-line p-3.5 hover:border-ink">
+          <a href={url(`/api/export/metricas?mes=${month}`)} className="flex items-center gap-3 rounded-2xl border border-line p-3.5 hover:border-ink">
             <span className="grid size-10 place-items-center rounded-xl bg-sunken">
               <Download className="size-5" />
             </span>

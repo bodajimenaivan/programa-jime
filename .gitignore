@@ -7,3 +7,10 @@ next-env.d.ts
 .env*.local
 .env
 .DS_Store
+hostinger/public/config.php
+hostinger/public/assets/
+hostinger/public/data/*
+!hostinger/public/data/.htaccess
+!hostinger/public/data/index.html
+hostinger/dist/
+hostinger/config.local.php
