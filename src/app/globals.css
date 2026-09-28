@@ -1,62 +1,72 @@
 @import "tailwindcss";
 
-/* Tokens: papel cálido + tinta + un solo acento bermellón. */
+/* Tokens con la paleta de la marca: champagne, rosa cerezo y verde reseda.
+   Marca: #ECE0DA champagne · #F1C8CB tea rose · #F6B0BB cherry blossom · #9CAD8C cambridge · #7E8C69 reseda */
 :root {
-  --c-bg: #f4f2ec;
-  --c-surface: #ffffff;
-  --c-sunken: #ebe8df;
-  --c-ink: #17140f;
-  --c-ink-2: #4a463e;
-  --c-muted: #8a857a;
-  --c-line: #e3ded2;
-  --c-line-strong: #cfc8b8;
-  --c-accent: #ff5b2e;
-  --c-accent-ink: #ffffff;
-  --c-accent-soft: #ffe4da;
-  --c-inverse: #17140f;
-  --c-inverse-ink: #f4f2ec;
+  --c-bg: #f5efeb;
+  --c-surface: #fffdfb;
+  --c-sunken: #ece0da;
+  --c-ink: #27291f;
+  --c-ink-2: #4f5344;
+  --c-muted: #767b69;
+  --c-line: #e7dad3;
+  --c-line-strong: #d3c3bb;
+  /* Acento rosa: fondos y detalles. Para texto rosa se usa accent-strong (legible). */
+  --c-accent: #f6b0bb;
+  --c-accent-ink: #3d2429;
+  --c-accent-soft: #fbe4e7;
+  --c-accent-strong: #ad4459;
+  /* Verde: botones principales, selecciones y paneles. */
+  --c-inverse: #5e6a4c;
+  --c-inverse-ink: #ffffff;
+  --c-brand-green: #7e8c69;
+  --c-brand-green-soft: #9cad8c;
+  --c-brand-rose: #f1c8cb;
 
-  --c-draft: #a39e93;
-  --c-review: #e79a0c;
-  --c-changes: #e5484d;
-  --c-approved: #1e9e63;
-  --c-scheduled: #2f6bf2;
-  --c-published: #17140f;
+  --c-draft: #a7a195;
+  --c-review: #d9951a;
+  --c-changes: #d0475c;
+  --c-approved: #5f8a45;
+  --c-scheduled: #5b7fb0;
+  --c-published: #27291f;
 
-  --shadow-pop: 0 1px 0 rgb(23 20 15 / 0.04), 0 12px 32px -12px rgb(23 20 15 / 0.22);
+  --shadow-pop: 0 1px 0 rgb(39 41 31 / 0.04), 0 12px 32px -12px rgb(39 41 31 / 0.22);
 
   /* Series de gráficos (orden fijo por red, validado para daltonismo). */
   --c-s1: #2a78d6;
   --c-s2: #eb6834;
   --c-s3: #1baf7a;
   --c-s4: #eda100;
-  --c-grid: #ebe7dd;
-  --c-deemph: #d6d0c3;
+  --c-grid: #ece2dc;
+  --c-deemph: #d8cbc3;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --c-bg: #13120f;
-    --c-surface: #1c1a16;
-    --c-sunken: #0e0d0b;
-    --c-ink: #f2efe7;
-    --c-ink-2: #c9c4b8;
-    --c-muted: #8f897c;
-    --c-line: #2d2a24;
-    --c-line-strong: #423e35;
-    --c-accent: #ff6a3d;
-    --c-accent-soft: #3a1d12;
-    --c-inverse: #f2efe7;
-    --c-inverse-ink: #17140f;
-    --c-draft: #7a766c;
-    --c-published: #f2efe7;
+    --c-bg: #171915;
+    --c-surface: #1f221c;
+    --c-sunken: #121410;
+    --c-ink: #f1ece8;
+    --c-ink-2: #cfc8c2;
+    --c-muted: #9a9e8e;
+    --c-line: #2e3228;
+    --c-line-strong: #444a3b;
+    --c-accent: #f6b0bb;
+    --c-accent-ink: #3d2429;
+    --c-accent-soft: #3a2427;
+    --c-accent-strong: #f6b0bb;
+    --c-inverse: #9cad8c;
+    --c-inverse-ink: #1b1e17;
+    --c-draft: #7d786e;
+    --c-published: #f1ece8;
+    --c-approved: #8fb574;
     --shadow-pop: 0 1px 0 rgb(0 0 0 / 0.3), 0 16px 40px -12px rgb(0 0 0 / 0.7);
     --c-s1: #3987e5;
     --c-s2: #d95926;
     --c-s3: #199e70;
     --c-s4: #c98500;
-    --c-grid: #2d2a24;
-    --c-deemph: #4a463d;
+    --c-grid: #2e3228;
+    --c-deemph: #4a5042;
   }
 }
 
@@ -72,6 +82,9 @@
   --color-accent: var(--c-accent);
   --color-accent-ink: var(--c-accent-ink);
   --color-accent-soft: var(--c-accent-soft);
+  --color-accent-strong: var(--c-accent-strong);
+  --color-brand-green: var(--c-brand-green);
+  --color-brand-rose: var(--c-brand-rose);
   --color-inverse: var(--c-inverse);
   --color-inverse-ink: var(--c-inverse-ink);
   --color-st-draft: var(--c-draft);

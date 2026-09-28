@@ -19,8 +19,8 @@ header('Referrer-Policy: strict-origin-when-cross-origin');
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f4f2ec">
-  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#13120f">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f5efeb">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#171915">
   <meta name="robots" content="noindex">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Grilla</title>

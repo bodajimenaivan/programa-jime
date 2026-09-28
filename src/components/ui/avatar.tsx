@@ -34,7 +34,7 @@ export function ClientAvatar({
   return (
     <span
       className={cn("inline-flex shrink-0 rounded-full p-[2px]", className)}
-      style={{ background: "conic-gradient(from 210deg, var(--c-accent), #ffb020, var(--c-accent))" }}
+      style={{ background: "conic-gradient(from 210deg, var(--c-accent), var(--c-brand-green), var(--c-accent))" }}
     >
       <span className="rounded-full bg-surface p-[2px]">{inner}</span>
     </span>

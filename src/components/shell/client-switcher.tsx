@@ -92,7 +92,7 @@ export function ClientSwitcher({ variant }: { variant: "topbar" | "sidebar" }) {
                       </span>
                     </span>
                     {c.attention > 0 && (
-                      <span className="mt-1 inline-block text-[12px] font-semibold text-accent">
+                      <span className="mt-1 inline-block text-[12px] font-semibold text-accent-strong">
                         {c.attention} {c.attention === 1 ? "pieza con cambios" : "piezas con cambios"}
                       </span>
                     )}

@@ -310,7 +310,7 @@ function DayPanel({ day, today, posts }: { day: string; today: string; posts: Po
       <div className="mb-4 flex items-baseline justify-between gap-2">
         <h2 className="font-display text-[20px] font-bold first-letter:uppercase">
           {formatDayLong(day)}
-          {rel && <span className="ml-2 text-[14px] font-semibold text-accent">{rel}</span>}
+          {rel && <span className="ml-2 text-[14px] font-semibold text-accent-strong">{rel}</span>}
         </h2>
       </div>
       {posts.length === 0 ? (
@@ -401,7 +401,7 @@ function ListView({ posts, today, month }: { posts: PostCardDTO[]; today: string
           {days.map((d) => (
             <section key={d}>
               <h3 className={cn("mb-2 text-[13px] font-semibold first-letter:uppercase", d < today ? "text-muted" : "text-ink-2")}>
-                {relativeDay(d, today) ? <span className="text-accent">{relativeDay(d, today)} · </span> : null}
+                {relativeDay(d, today) ? <span className="text-accent-strong">{relativeDay(d, today)} · </span> : null}
                 {formatDayLong(d)}
               </h3>
               <ul className="space-y-2">

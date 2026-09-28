@@ -49,6 +49,6 @@ export const TASK_COLUMNS: { id: TaskStatus; label: string }[] = [
 export const PRIORITY_LABEL = { low: "Baja", normal: "Normal", high: "Alta" } as const;
 
 /** Paleta para avatares de clientes y personas. */
-export const SWATCHES = ["#FF5B2E", "#1F6FEB", "#1E9E63", "#C2410C", "#7C3AED", "#DB2777", "#0E7490", "#A16207"];
+export const SWATCHES = ["#7E8C69", "#C9687D", "#5E6A4C", "#B07F72", "#5F7C9E", "#94607A", "#4F7A6B", "#B8844A"];
 
 export const CAPTION_LIMIT = 2200;

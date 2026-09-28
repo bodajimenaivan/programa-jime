@@ -1,15 +1,15 @@
 import { Logo } from "@/components/ui/logo";
 
 const TILES = [
-  { bg: "#FF5B2E", label: "Reel", shape: "reel" },
-  { bg: "#E9E4D6", label: "", shape: "img" },
-  { bg: "#4A4437", label: "Carrusel", shape: "carousel" },
-  { bg: "#DCE7FF", label: "", shape: "img" },
-  { bg: "#1E9E63", label: "Aprobado", shape: "check" },
-  { bg: "#F7D774", label: "", shape: "img" },
-  { bg: "#E9E4D6", label: "", shape: "img" },
-  { bg: "#FFE4DA", label: "Historia", shape: "story" },
-  { bg: "#2F6BF2", label: "", shape: "img" },
+  { bg: "#F6B0BB", label: "Reel", shape: "reel" },
+  { bg: "#ECE0DA", label: "", shape: "img" },
+  { bg: "#7E8C69", label: "Carrusel", shape: "carousel" },
+  { bg: "#F1C8CB", label: "", shape: "img" },
+  { bg: "#9CAD8C", label: "Aprobado", shape: "check" },
+  { bg: "#ECE0DA", label: "", shape: "img" },
+  { bg: "#F1C8CB", label: "", shape: "img" },
+  { bg: "#F6B0BB", label: "Historia", shape: "story" },
+  { bg: "#9CAD8C", label: "", shape: "img" },
 ] as const;
 
 /** Marco visual de login y registro (compartido con la versión PHP). */

@@ -318,7 +318,7 @@ function TaskCard({ task, people, posts, today, overlay }: { task: Task; people:
       )}
     >
       <div className="flex items-start gap-2">
-        {task.priority === "high" && <Flag className="mt-0.5 size-3.5 shrink-0 fill-accent text-accent" />}
+        {task.priority === "high" && <Flag className="mt-0.5 size-3.5 shrink-0 fill-accent text-accent-strong" />}
         <p className={cn("flex-1 text-[14.5px] font-medium leading-snug", done && "text-muted line-through decoration-line-strong")}>{task.title}</p>
       </div>
       {(task.dueDate || person || post || task.description) && (

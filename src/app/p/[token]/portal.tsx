@@ -323,7 +323,7 @@ function PortalCalendar({
       <div ref={list} className="scroll-mt-28 pt-9">
         <h3 className="mb-5 font-display text-[20px] font-bold first-letter:uppercase">
           {formatDayLong(selected)}
-          {relativeDay(selected, today) && <span className="ml-2 text-[14px] font-semibold text-accent">{relativeDay(selected, today)}</span>}
+          {relativeDay(selected, today) && <span className="ml-2 text-[14px] font-semibold text-accent-strong">{relativeDay(selected, today)}</span>}
         </h3>
         {dayItems.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-line-strong px-5 py-8 text-center text-[14.5px] text-muted">
@@ -403,7 +403,7 @@ function PortalItem({
             <h3 className="mb-1 font-display text-[19px] font-bold leading-snug tracking-[-0.01em]">{item.title}</h3>
           )}
           <p className="text-[13px] font-semibold first-letter:uppercase text-ink-2">
-            {rel && <span className="text-accent">{rel} · </span>}
+            {rel && <span className="text-accent-strong">{rel} · </span>}
             {formatDayLong(item.date)}
             {item.time && ` · ${item.time} h`}
           </p>

@@ -30,7 +30,7 @@ const STATUS_LABEL = [
     'draft' => 'Borrador', 'review' => 'Para aprobar', 'changes' => 'Con cambios',
     'approved' => 'Aprobado', 'scheduled' => 'Programado', 'published' => 'Publicado',
 ];
-const SWATCHES = ['#FF5B2E', '#1F6FEB', '#1E9E63', '#C2410C', '#7C3AED', '#DB2777', '#0E7490', '#A16207'];
+const SWATCHES = ['#7E8C69', '#C9687D', '#5E6A4C', '#B07F72', '#5F7C9E', '#94607A', '#4F7A6B', '#B8844A'];
 
 /** Ruta base pública de la app (ej. "/" o "/grilla/"), calculada desde el script actual. */
 function app_base(): string
@@ -59,6 +59,12 @@ function db(): PDO
 
 function migrate(PDO $pdo): void
 {
+    // v2: colores de la marca (el avatar de la cuenta pasa del naranja viejo al verde).
+    $flag2 = DATA_DIR . '/.schema-v2';
+    if (is_file(DATA_DIR . '/.schema-v1') && !is_file($flag2)) {
+        $pdo->exec("UPDATE g_users SET color = '#7E8C69' WHERE color = '#FF5B2E'");
+        @file_put_contents($flag2, (string)time());
+    }
     $flag = DATA_DIR . '/.schema-v1';
     if (is_file($flag)) return;
     $t = 'ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci';
@@ -76,6 +82,7 @@ function migrate(PDO $pdo): void
     foreach ($sql as $q) $pdo->exec($q);
     ensure_data_dir();
     @file_put_contents($flag, (string)time());
+    @file_put_contents(DATA_DIR . '/.schema-v2', (string)time());
 }
 
 function ensure_data_dir(): void
