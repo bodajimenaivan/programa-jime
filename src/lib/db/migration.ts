@@ -110,4 +110,17 @@ CREATE TABLE IF NOT EXISTS metrics (
   profile_visits INTEGER NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS metrics_unique ON metrics(client_id, network, month);
+CREATE TABLE IF NOT EXISTS events (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  client_id TEXT,
+  type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  date TEXT NOT NULL,
+  time TEXT,
+  notes TEXT NOT NULL,
+  created_by TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS events_ws_date ON events(workspace_id, date);
 `;

@@ -34,13 +34,16 @@ type Initial = {
 
 export function PostEditor({
   id,
-  client,
+  client: initialClient,
+  clients = [],
   initial,
   media,
   comments,
 }: {
   id?: string;
   client: Client;
+  /** Para poder elegir o cambiar de cliente desde el editor. */
+  clients?: Client[];
   initial: Initial;
   media: MediaDTO[];
   comments: Comment[];
@@ -51,6 +54,8 @@ export function PostEditor({
   const [saving, startSave] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
+  const [clientId, setClientId] = useState(initialClient.id);
+  const client = clients.find((c) => c.id === clientId) ?? initialClient;
   const [format, setFormat] = useState(initial.format);
   const [networks, setNetworks] = useState<Network[]>(initial.networks);
   const [date, setDate] = useState(initial.date);
@@ -74,7 +79,7 @@ export function PostEditor({
     })),
   );
 
-  const snapshot = JSON.stringify([format, networks, date, time, title, caption, status, notes, items.map((i) => i.id ?? i.key)]);
+  const snapshot = JSON.stringify([clientId, format, networks, date, time, title, caption, status, notes, items.map((i) => i.id ?? i.key)]);
   const [saved, setSaved] = useState(snapshot);
   const dirty = snapshot !== saved;
 
@@ -128,7 +133,7 @@ export function PostEditor({
           return;
         }
         setStatus(st);
-        setSaved(JSON.stringify([format, networks, date, time, title, caption, st, notes, items.map((i) => i.id ?? i.key)]));
+        setSaved(JSON.stringify([clientId, format, networks, date, time, title, caption, st, notes, items.map((i) => i.id ?? i.key)]));
         if (!id) router.replace(`/posts/${res.id}`);
         else router.refresh();
         resolve(res.id);
@@ -199,6 +204,18 @@ export function PostEditor({
       <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-8 px-5 pb-32 pt-6 lg:grid-cols-[minmax(0,1fr)_400px] lg:px-8 lg:pb-16 lg:pt-8">
         {/* Formulario */}
         <div className={cn("space-y-7", tab !== "edit" && "hidden lg:block")}>
+          {clients.length > 1 && (
+            <Section label="Cliente">
+              <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 lg:mx-0 lg:flex-wrap lg:px-0">
+                {clients.map((c) => (
+                  <button key={c.id} type="button" className="chip pl-1.5" data-on={clientId === c.id} onClick={() => setClientId(c.id)}>
+                    <ClientAvatar client={c} size={22} /> {c.handle}
+                  </button>
+                ))}
+              </div>
+            </Section>
+          )}
+
           <div>
             <label className="label" htmlFor="title">
               Título <span className="font-normal text-muted">(lo ve el cliente, para ubicar la pieza rápido)</span>

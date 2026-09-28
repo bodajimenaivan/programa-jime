@@ -65,6 +65,13 @@ function migrate(PDO $pdo): void
         $pdo->exec("UPDATE g_users SET color = '#7E8C69' WHERE color = '#FF5B2E'");
         @file_put_contents($flag2, (string)time());
     }
+    // v3: agenda interna del equipo (rodajes, reuniones, entregas).
+    $flag3 = DATA_DIR . '/.schema-v3';
+    if (!is_file($flag3)) {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS g_events (id VARCHAR(32) PRIMARY KEY, workspace_id VARCHAR(32) NOT NULL, client_id VARCHAR(32) NULL, type VARCHAR(16) NOT NULL, title VARCHAR(160) NOT NULL, `date` CHAR(10) NOT NULL, `time` CHAR(5) NULL, notes TEXT NOT NULL, created_by VARCHAR(32) NOT NULL, created_at BIGINT NOT NULL, KEY (workspace_id, `date`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        ensure_data_dir();
+        @file_put_contents($flag3, (string)time());
+    }
     $flag = DATA_DIR . '/.schema-v1';
     if (is_file($flag)) return;
     $t = 'ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci';

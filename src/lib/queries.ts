@@ -1,7 +1,7 @@
 import "server-only";
-import { and, asc, desc, eq, gte, inArray, lte, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { db, schema } from "./db";
-import type { Media, Post } from "./db/schema";
+import type { Media, Post, TeamEvent } from "./db/schema";
 import { mediaUrl } from "./utils";
 
 export type MediaDTO = {
@@ -30,7 +30,7 @@ export function toMediaDTO(m: Media, share?: string): MediaDTO {
   };
 }
 
-export type PostCardDTO = Pick<Post, "id" | "title" | "format" | "status" | "date" | "time" | "networks" | "caption"> & {
+export type PostCardDTO = Pick<Post, "id" | "clientId" | "title" | "format" | "status" | "date" | "time" | "networks" | "caption"> & {
   thumb: MediaDTO | null;
   mediaCount: number;
   comments: number;
@@ -80,6 +80,7 @@ function toCards(posts: Post[], share?: string): PostCardDTO[] {
     const list = media.get(p.id) ?? [];
     return {
       id: p.id,
+      clientId: p.clientId,
       title: p.title,
       caption: p.caption,
       format: p.format,
@@ -94,11 +95,12 @@ function toCards(posts: Post[], share?: string): PostCardDTO[] {
   });
 }
 
-export function postsInRange(clientId: string, from: string, to: string) {
+export function postsInRange(clientIds: string[], from: string, to: string) {
+  if (clientIds.length === 0) return [];
   const rows = db
     .select()
     .from(schema.posts)
-    .where(and(eq(schema.posts.clientId, clientId), gte(schema.posts.date, from), lte(schema.posts.date, to)))
+    .where(and(inArray(schema.posts.clientId, clientIds), gte(schema.posts.date, from), lte(schema.posts.date, to)))
     .orderBy(asc(schema.posts.date), asc(sql`coalesce(${schema.posts.time}, '99:99')`), asc(schema.posts.createdAt))
     .all();
   return toCards(rows);
@@ -152,4 +154,31 @@ export function portalPosts(clientId: string, share: string) {
     media: (media.get(post.id) ?? []).map((m) => toMediaDTO(m, share)),
     comments: comments.filter((c) => c.postId === post.id),
   }));
+}
+
+export type EventDTO = Pick<TeamEvent, "id" | "clientId" | "type" | "title" | "date" | "time" | "notes">;
+
+/** Agenda interna: de todos los clientes, o de uno (más los eventos generales sin cliente). */
+export function eventsInRange(workspaceId: string, from: string, to: string, clientId: string | null): EventDTO[] {
+  return db
+    .select({
+      id: schema.events.id,
+      clientId: schema.events.clientId,
+      type: schema.events.type,
+      title: schema.events.title,
+      date: schema.events.date,
+      time: schema.events.time,
+      notes: schema.events.notes,
+    })
+    .from(schema.events)
+    .where(
+      and(
+        eq(schema.events.workspaceId, workspaceId),
+        gte(schema.events.date, from),
+        lte(schema.events.date, to),
+        clientId ? or(eq(schema.events.clientId, clientId), isNull(schema.events.clientId)) : undefined,
+      ),
+    )
+    .orderBy(asc(schema.events.date), asc(sql`coalesce(${schema.events.time}, '00:00')`))
+    .all();
 }

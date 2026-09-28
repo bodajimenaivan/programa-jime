@@ -137,6 +137,24 @@ export const metrics = sqliteTable(
   (t) => [uniqueIndex("metrics_unique").on(t.clientId, t.network, t.month)],
 );
 
+/** Agenda interna del equipo (rodajes, reuniones, entregas). El cliente nunca la ve. */
+export const events = sqliteTable(
+  "events",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    clientId: text("client_id"),
+    type: text("type", { enum: ["shoot", "meeting", "delivery", "other"] }).notNull(),
+    title: text("title").notNull(),
+    date: text("date").notNull(),
+    time: text("time"),
+    notes: text("notes").notNull(),
+    createdBy: text("created_by").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [index("events_ws_date").on(t.workspaceId, t.date)],
+);
+
 // Los enums viven en funciones para que el orden de declaración no importe.
 function FORMATS() {
   return ["post", "carousel", "reel", "story", "tiktok"] as const;
@@ -169,3 +187,5 @@ export type Media = typeof media.$inferSelect;
 export type Comment = typeof comments.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
 export type Metric = typeof metrics.$inferSelect;
+export type TeamEvent = typeof events.$inferSelect;
+export type EventType = TeamEvent["type"];

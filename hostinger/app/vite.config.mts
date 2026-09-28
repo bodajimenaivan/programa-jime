@@ -11,7 +11,7 @@ const actions = path.resolve(here, "src/actions");
 
 // Las Server Actions de Next se reemplazan por llamadas a la API PHP.
 const REDIRECTS: [RegExp, (m: RegExpMatchArray) => string][] = [
-  [/src\/app\/\(app\)\/actions\/(posts|clients|tasks|metrics)\.ts$/, (m) => `${actions}/${m[1]}.ts`],
+  [/src\/app\/\(app\)\/actions\/(posts|clients|tasks|metrics|events)\.ts$/, (m) => `${actions}/${m[1]}.ts`],
   [/src\/app\/\(auth\)\/actions\.ts$/, () => `${actions}/auth.ts`],
   [/src\/app\/p\/actions\.ts$/, () => `${actions}/portal.ts`],
 ];

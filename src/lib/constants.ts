@@ -46,6 +46,9 @@ export const TASK_COLUMNS: { id: TaskStatus; label: string }[] = [
   { id: "done", label: "Listo" },
 ];
 
+export const EVENT_LABEL = { shoot: "Rodaje", meeting: "Reunión", delivery: "Entrega", other: "Otro" } as const;
+export const EVENT_ORDER = ["shoot", "meeting", "delivery", "other"] as const;
+
 export const PRIORITY_LABEL = { low: "Baja", normal: "Normal", high: "Alta" } as const;
 
 /** Paleta para avatares de clientes y personas. */

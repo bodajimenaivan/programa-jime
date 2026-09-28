@@ -12,12 +12,13 @@ export default async function PostPage(props: PageProps<"/posts/[id]">) {
   const sp = await props.searchParams;
 
   if (id === "nuevo") {
-    const { client, workspace } = await requireClient();
+    const { client, clients, workspace } = await requireClient();
     const fecha = typeof sp.fecha === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sp.fecha) ? sp.fecha : todayIn(workspace.timezone);
     return (
       <PostEditor
         key="nuevo"
         client={client}
+        clients={clients}
         initial={{
           format: "post",
           networks: client.networks.includes("instagram") ? ["instagram"] : [client.networks[0]],
@@ -46,6 +47,7 @@ export default async function PostPage(props: PageProps<"/posts/[id]">) {
       key={full.post.id}
       id={full.post.id}
       client={client}
+      clients={clients}
       initial={full.post}
       media={full.media}
       comments={full.comments}

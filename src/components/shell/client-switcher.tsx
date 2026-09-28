@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, ChevronDown, Plus, Settings2 } from "lucide-react";
+import { Check, ChevronDown, LayoutGrid, Plus, Settings2 } from "lucide-react";
 import { ClientAvatar } from "@/components/ui/avatar";
 import { NetworkIcon } from "@/components/ui/network-icon";
 import { Sheet } from "@/components/ui/sheet";
@@ -111,6 +111,18 @@ export function ClientSwitcher({ variant }: { variant: "topbar" | "sidebar" }) {
           })}
         </ul>
         <div className="mt-2 space-y-1 border-t border-line pt-3">
+          {clients.length > 1 && (
+            <Link
+              href="/calendario?ver=todos"
+              onClick={() => setOpen(false)}
+              className="-mx-2 flex items-center gap-3.5 rounded-2xl px-2 py-2 text-[15px] font-semibold hover:bg-sunken/70"
+            >
+              <span className="grid size-[52px] place-items-center rounded-full bg-sunken">
+                <LayoutGrid className="size-5" />
+              </span>
+              Ver todos los clientes juntos
+            </Link>
+          )}
           <button
             onClick={() => {
               setOpen(false);

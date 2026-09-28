@@ -1,7 +1,7 @@
 // Páginas de la versión PHP: piden los datos a la API y renderizan las mismas vistas que la versión Next.
 import { useEffect, useState } from "react";
 import type { Client, Comment, Network, Task } from "@/lib/db/schema";
-import type { MediaDTO, PostCardDTO } from "@/lib/queries";
+import type { EventDTO, MediaDTO, PostCardDTO } from "@/lib/queries";
 import { monthGrid, monthKey } from "@/lib/dates";
 import { shapeMetrics, monthsBack, type RawMetric, type RawPublished } from "@/lib/metrics-shape";
 import { AppShell } from "@/components/shell/app-shell";
@@ -46,18 +46,28 @@ export function CalendarPage() {
   const today = shell.today;
   const month = isMonth(search.get("mes")) ? search.get("mes")! : monthKey(today);
   const v = search.get("vista");
-  const view = v === "lista" || v === "feed" ? v : "mes";
+  const all = search.get("ver") === "todos";
+  const view = v === "lista" || (v === "feed" && !all) ? v : "mes";
   const day = isDay(search.get("dia")) ? search.get("dia") : null;
   const weeks = monthGrid(month);
-  const { data, error } = useData(`cal:${month}:${view}`, () =>
-    rpc<{ clientId: string; posts: PostCardDTO[]; feed: PostCardDTO[] }>("calendarData", [weeks[0][0], weeks.at(-1)![6], view === "feed"]),
+  const { data, error } = useData(`cal:${month}:${view}:${all ? "todos" : ""}`, () =>
+    rpc<{ clientId: string; posts: PostCardDTO[]; feed: PostCardDTO[]; events: EventDTO[] }>("calendarData", [
+      weeks[0][0],
+      weeks.at(-1)![6],
+      view === "feed",
+      all ? "todos" : "",
+    ]),
   );
   if (error && !data) return <LoadError message={error} />;
   if (!data || !shell.activeClient) return <Loading />;
   const c = shell.activeClient;
   return (
     <CalendarView
-      key={data.clientId}
+      key={all ? "todos" : data.clientId}
+      all={all}
+      events={data.events}
+      activeClientId={c.id}
+      clients={shell.clients.map((x) => ({ id: x.id, name: x.name, handle: x.handle, color: x.color, avatarId: x.avatarId }))}
       month={month}
       today={today}
       view={view}
@@ -77,6 +87,7 @@ type PostPayload = {
   id?: string;
   notFound?: boolean;
   client: Client;
+  clients: Client[];
   initial: React.ComponentProps<typeof PostEditor>["initial"];
   media: MediaDTO[];
   comments: Comment[];
@@ -90,7 +101,7 @@ export function PostPage({ id }: { id: string }) {
   if (error && !data) return <LoadError message={error} />;
   if (!data) return <Loading />;
   if (data.notFound) return <NotFound />;
-  return <PostEditor key={data.id ?? "nuevo"} id={data.id} client={data.client} initial={data.initial} media={data.media} comments={data.comments} />;
+  return <PostEditor key={data.id ?? "nuevo"} id={data.id} client={data.client} clients={data.clients} initial={data.initial} media={data.media} comments={data.comments} />;
 }
 
 /* ---------------- Tareas ---------------- */

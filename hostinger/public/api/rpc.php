@@ -18,7 +18,7 @@ $API = [
     // shell y clientes
     'shell', 'switchClient', 'saveClient', 'archiveClient', 'resetShareLink', 'clientsPage',
     // calendario y piezas
-    'calendarData', 'postPage', 'savePost', 'deletePost', 'movePost', 'setPostStatus', 'addTeamComment', 'savePostMetrics', 'duplicatePost',
+    'calendarData', 'saveEvent', 'deleteEvent', 'postPage', 'savePost', 'deletePost', 'movePost', 'setPostStatus', 'addTeamComment', 'savePostMetrics', 'duplicatePost',
     // tareas
     'tasksPage', 'createTask', 'updateTask', 'deleteTask',
     // métricas
@@ -246,7 +246,7 @@ function to_cards(array $posts): array
     return array_map(function ($p) use ($media, $comments) {
         $list = $media[$p['id']] ?? [];
         return [
-            'id' => $p['id'], 'title' => $p['title'], 'caption' => $p['caption'], 'format' => $p['format'],
+            'id' => $p['id'], 'clientId' => $p['client_id'], 'title' => $p['title'], 'caption' => $p['caption'], 'format' => $p['format'],
             'status' => $p['status'], 'date' => $p['date'], 'time' => $p['time'],
             'networks' => json_decode($p['networks'], true) ?: [],
             'thumb' => $list ? dto_media($list[0]) : null,
@@ -256,19 +256,61 @@ function to_cards(array $posts): array
     }, $posts);
 }
 
-function api_calendarData(string $from, string $to, bool $withFeed): array
+/** $scope = 'todos' junta a todos los clientes; si no, el cliente activo. */
+function api_calendarData(string $from, string $to, bool $withFeed, string $scope = ''): array
 {
     $u = require_user();
     $client = active_client($u);
     if (!$client) return ['redirect' => '/clientes?nuevo=1'];
-    $posts = all("SELECT * FROM g_posts WHERE client_id = ? AND `date` BETWEEN ? AND ? ORDER BY `date`, COALESCE(`time`, '99:99'), created_at", [$client['id'], $from, $to]);
+    $all = $scope === 'todos';
+    $ids = $all ? array_column(active_clients($u['workspace_id']), 'id') : [$client['id']];
+    $posts = all("SELECT * FROM g_posts WHERE client_id IN (" . in_list($ids) . ") AND `date` BETWEEN ? AND ? ORDER BY `date`, COALESCE(`time`, '99:99'), created_at", array_merge($ids, [$from, $to]));
+    $evSql = 'SELECT id, client_id, type, title, `date`, `time`, notes FROM g_events WHERE workspace_id = ? AND `date` BETWEEN ? AND ?' . ($all ? '' : ' AND (client_id = ? OR client_id IS NULL)') . " ORDER BY `date`, COALESCE(`time`, '00:00')";
+    $evParams = $all ? [$u['workspace_id'], $from, $to] : [$u['workspace_id'], $from, $to, $client['id']];
+    $events = array_map(fn($e) => [
+        'id' => $e['id'], 'clientId' => $e['client_id'], 'type' => $e['type'], 'title' => $e['title'],
+        'date' => $e['date'], 'time' => $e['time'], 'notes' => $e['notes'],
+    ], all($evSql, $evParams));
     $feed = [];
     if ($withFeed) {
         $rows = all("SELECT * FROM g_posts WHERE client_id = ? AND format IN ('post','carousel','reel') ORDER BY `date` DESC, COALESCE(`time`, '00:00') DESC LIMIT 60", [$client['id']]);
         $rows = array_values(array_filter($rows, fn($p) => in_array('instagram', json_decode($p['networks'], true) ?: [], true)));
         $feed = to_cards($rows);
     }
-    return ['clientId' => $client['id'], 'posts' => to_cards($posts), 'feed' => $feed];
+    return ['clientId' => $client['id'], 'posts' => to_cards($posts), 'feed' => $feed, 'events' => $events];
+}
+
+function api_saveEvent(array $in): array
+{
+    $u = require_user();
+    $title = mb_substr(trim((string)($in['title'] ?? '')), 0, 160);
+    $date = (string)($in['date'] ?? '');
+    $time = (string)($in['time'] ?? '');
+    $type = (string)($in['type'] ?? '');
+    $clientId = (string)($in['clientId'] ?? '');
+    if ($title === '') return ['error' => 'Poné un nombre para el evento.'];
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) return ['error' => 'Elegí una fecha.'];
+    if ($time !== '' && !preg_match('/^\d{2}:\d{2}$/', $time)) return ['error' => 'La hora no es válida.'];
+    if (!in_array($type, ['shoot', 'meeting', 'delivery', 'other'], true)) return ['error' => 'Tipo inválido.'];
+    if ($clientId !== '') client_access($u['workspace_id'], $clientId);
+    $notes = mb_substr((string)($in['notes'] ?? ''), 0, 4000);
+    $id = (string)($in['id'] ?? '');
+    if ($id !== '') {
+        if (!one('SELECT id FROM g_events WHERE id = ? AND workspace_id = ?', [$id, $u['workspace_id']])) return ['error' => 'Evento no encontrado.'];
+        q('UPDATE g_events SET client_id=?, type=?, title=?, `date`=?, `time`=?, notes=? WHERE id=?', [$clientId ?: null, $type, $title, $date, $time ?: null, $notes, $id]);
+    } else {
+        $id = new_id();
+        q('INSERT INTO g_events (id, workspace_id, client_id, type, title, `date`, `time`, notes, created_by, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)',
+            [$id, $u['workspace_id'], $clientId ?: null, $type, $title, $date, $time ?: null, $notes, $u['id'], now_ms()]);
+    }
+    return ['id' => $id];
+}
+
+function api_deleteEvent(string $id): bool
+{
+    $u = require_user();
+    q('DELETE FROM g_events WHERE id = ? AND workspace_id = ?', [$id, $u['workspace_id']]);
+    return true;
 }
 
 function own_post(string $workspaceId, string $id): array
@@ -289,6 +331,7 @@ function api_postPage(string $id, string $fecha): array
         $date = preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha) ? $fecha : today_in($ws['timezone']);
         return [
             'client' => $c,
+            'clients' => array_map('dto_client', active_clients($u['workspace_id'])),
             'initial' => [
                 'format' => 'post',
                 'networks' => in_array('instagram', $c['networks'], true) ? ['instagram'] : [$c['networks'][0] ?? 'instagram'],
@@ -302,7 +345,7 @@ function api_postPage(string $id, string $fecha): array
     $client = one('SELECT * FROM g_clients WHERE id = ?', [$p['client_id']]);
     $media = array_map(fn($m) => dto_media($m), media_by_post([$p['id']])[$p['id']] ?? []);
     $comments = array_map('dto_comment', all('SELECT * FROM g_comments WHERE post_id = ? ORDER BY created_at', [$p['id']]));
-    return ['id' => $p['id'], 'client' => dto_client($client), 'initial' => dto_post($p), 'media' => $media, 'comments' => $comments];
+    return ['id' => $p['id'], 'client' => dto_client($client), 'clients' => array_map('dto_client', active_clients($u['workspace_id'])), 'initial' => dto_post($p), 'media' => $media, 'comments' => $comments];
 }
 
 function status_comment(string $postId, array $u, string $status, int $now): void

@@ -3,22 +3,26 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, MessageCircle, Plus, Film, GalleryHorizontalEnd, Share2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, MessageCircle, Plus, Film, GalleryHorizontalEnd, Share2, LayoutGrid, Lock } from "lucide-react";
 import type { PostStatus } from "@/lib/db/schema";
-import type { PostCardDTO } from "@/lib/queries";
-import { STATUS_LABEL, STATUS_ORDER } from "@/lib/constants";
+import type { EventDTO, PostCardDTO } from "@/lib/queries";
+import { EVENT_LABEL, STATUS_LABEL, STATUS_ORDER } from "@/lib/constants";
 import { WEEKDAYS_SHORT, formatDayLong, monthLabel, monthKey, parseISODate, relativeDay, shiftMonth } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { FormatIcon, FormatTag, StatusDot, StatusPill, STATUS_VAR, Thumb } from "@/components/post/bits";
 import { NetworkIcon } from "@/components/ui/network-icon";
 import { ClientAvatar } from "@/components/ui/avatar";
 import { movePost } from "../actions/posts";
+import { switchClient } from "../actions/clients";
+import { EventIcon, EventSheet } from "@/components/calendar/event-sheet";
 import { useToast } from "@/components/ui/toast";
 import { shareLink } from "@/lib/share";
 import { absUrl } from "@/lib/base";
 
 type View = "mes" | "lista" | "feed";
 type ClientInfo = { name: string; handle: string; color: string; avatarId: string | null };
+type ClientChip = ClientInfo & { id: string };
+type Ctx = { all: boolean; clientsById: Map<string, ClientChip>; onEvent: (e: EventDTO | null, date: string) => void };
 
 export function CalendarView({
   month,
@@ -27,11 +31,20 @@ export function CalendarView({
   initialDay,
   weeks,
   posts: initialPosts,
+  events = [],
   feed,
   client,
   shareToken,
+  all = false,
+  clients = [],
+  activeClientId,
 }: {
   shareToken?: string;
+  events?: EventDTO[];
+  /** Vista con todos los clientes juntos. */
+  all?: boolean;
+  clients?: ClientChip[];
+  activeClientId?: string;
   month: string;
   today: string;
   view: View;
@@ -43,6 +56,10 @@ export function CalendarView({
 }) {
   const router = useRouter();
   const [toast, showToast] = useToast();
+  const [switching, startSwitch] = useTransition();
+  const [eventSheet, setEventSheet] = useState<{ event: EventDTO | null; date: string } | null>(null);
+  const clientsById = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);
+  const ctx: Ctx = { all, clientsById, onEvent: (event, date) => setEventSheet({ event, date }) };
   const [posts, setPosts] = useState(initialPosts);
   useEffect(() => setPosts(initialPosts), [initialPosts]);
 
@@ -58,10 +75,16 @@ export function CalendarView({
     return map;
   }, [posts]);
 
+  const eventsByDay = useMemo(() => {
+    const map = new Map<string, EventDTO[]>();
+    for (const e of events) map.set(e.date, [...(map.get(e.date) ?? []), e]);
+    return map;
+  }, [events]);
+
   const inMonth = posts.filter((p) => monthKey(p.date) === month);
   const counts = STATUS_ORDER.map((s) => [s, inMonth.filter((p) => p.status === s).length] as const).filter(([, n]) => n > 0);
 
-  const href = (m: string, v: View = view) => `/calendario?mes=${m}${v !== "mes" ? `&vista=${v}` : ""}`;
+  const href = (m: string, v: View = view, todos = all) => `/calendario?mes=${m}${v !== "mes" ? `&vista=${v}` : ""}${todos ? "&ver=todos" : ""}`;
   const [year, monthName] = [month.slice(0, 4), monthLabel(month).split(" ")[0]];
 
   return (
@@ -86,10 +109,34 @@ export function CalendarView({
         )}
       </div>
 
+      {clients.length > 1 && (
+        <div className={cn("no-scrollbar -mx-5 mb-5 flex gap-2 overflow-x-auto px-5 lg:mx-0 lg:flex-wrap lg:px-0", switching && "opacity-60")}>
+          <Link href={href(month, view === "feed" ? "mes" : view, true)} className="chip" data-on={all}>
+            <LayoutGrid className="size-4" /> Todos los clientes
+          </Link>
+          {clients.map((c) => (
+            <button
+              key={c.id}
+              className="chip pl-1.5"
+              data-on={!all && c.id === activeClientId}
+              onClick={() =>
+                startSwitch(async () => {
+                  if (c.id !== activeClientId) await switchClient(c.id);
+                  router.push(href(month, view, false));
+                  router.refresh();
+                })
+              }
+            >
+              <ClientAvatar client={c} size={22} /> {c.handle}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-4 pb-6">
         <div className="flex w-full items-center justify-between gap-3 sm:w-auto">
         <div className="inline-flex rounded-full bg-sunken p-1">
-          {(["mes", "lista", "feed"] as View[]).map((v) => (
+          {((all ? ["mes", "lista"] : ["mes", "lista", "feed"]) as View[]).map((v) => (
             <Link
               key={v}
               href={href(month, v)}
@@ -102,7 +149,7 @@ export function CalendarView({
             </Link>
           ))}
         </div>
-        {shareToken && (
+        {shareToken && !all && (
           <button
             className="btn-ghost btn-sm shrink-0 px-3.5"
             onClick={async () => {
@@ -134,19 +181,38 @@ export function CalendarView({
             today={today}
             selected={selected}
             byDay={byDay}
+            eventsByDay={eventsByDay}
+            ctx={ctx}
             onSelect={setSelected}
             onSwipe={(dir) => router.push(href(shiftMonth(month, dir)))}
             onMove={(id, date) => setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, date } : p)))}
           />
-          <DayPanel day={selected} today={today} posts={byDay.get(selected) ?? []} />
+          <DayPanel day={selected} today={today} posts={byDay.get(selected) ?? []} events={eventsByDay.get(selected) ?? []} ctx={ctx} />
         </div>
       )}
 
-      {view === "lista" && <ListView posts={inMonth} today={today} month={month} />}
+      {view === "lista" && (
+        <ListView posts={inMonth} events={events.filter((e) => monthKey(e.date) === month)} today={today} month={month} ctx={ctx} />
+      )}
       {view === "feed" && <FeedView posts={feed} client={client} />}
       {toast}
+      <EventSheet
+        open={!!eventSheet}
+        onClose={() => setEventSheet(null)}
+        initial={eventSheet?.event ?? null}
+        date={eventSheet?.date ?? selected}
+        clients={clients}
+        defaultClientId={all ? null : (activeClientId ?? null)}
+      />
     </div>
   );
+}
+
+/** Puntito con el color del cliente (en la vista de todos). */
+function ClientDot({ id, ctx, className }: { id: string; ctx: Ctx; className?: string }) {
+  const c = ctx.clientsById.get(id);
+  if (!ctx.all || !c) return null;
+  return <span title={c.name} className={cn("inline-block size-2.5 shrink-0 rounded-full ring-2 ring-surface", className)} style={{ background: c.color }} />;
 }
 
 /* ---------------- Mes ---------------- */
@@ -157,6 +223,8 @@ function MonthGrid({
   today,
   selected,
   byDay,
+  eventsByDay,
+  ctx,
   onSelect,
   onSwipe,
   onMove,
@@ -166,6 +234,8 @@ function MonthGrid({
   today: string;
   selected: string;
   byDay: Map<string, PostCardDTO[]>;
+  eventsByDay: Map<string, EventDTO[]>;
+  ctx: Ctx;
   onSelect: (d: string) => void;
   onSwipe: (dir: 1 | -1) => void;
   onMove: (id: string, date: string) => void;
@@ -195,6 +265,7 @@ function MonthGrid({
       <div className="grid grid-cols-7 gap-1.5 lg:gap-2">
         {weeks.flat().map((date) => {
           const list = byDay.get(date) ?? [];
+          const evs = eventsByDay.get(date) ?? [];
           const other = monthKey(date) !== month;
           const isToday = date === today;
           const isSel = date === selected;
@@ -235,6 +306,14 @@ function MonthGrid({
                 >
                   {parseISODate(date).d}
                 </span>
+                {evs.length > 0 && (
+                  <span
+                    className="grid size-5 place-items-center rounded-full bg-brand-green text-white lg:hidden"
+                    title={evs.map((e) => e.title).join(" · ")}
+                  >
+                    <EventIcon type={evs[0].type} className="size-3" />
+                  </span>
+                )}
                 <Link
                   href={`/posts/nuevo?fecha=${date}`}
                   onClick={(e) => e.stopPropagation()}
@@ -256,6 +335,7 @@ function MonthGrid({
                     className={cn("size-full", other && "opacity-50")}
                   />
                   <span className="absolute inset-x-0 bottom-0 h-[3px] rounded-b-md" style={{ background: STATUS_VAR[first.status] }} />
+                  <ClientDot id={first.clientId} ctx={ctx} className="absolute left-0.5 top-0.5 size-2! ring-1!" />
                   {list.length > 1 && (
                     <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-inverse px-1 text-[10px] font-bold text-inverse-ink">
                       {list.length}
@@ -266,6 +346,23 @@ function MonthGrid({
 
               {/* Desktop: lista corta, arrastrable */}
               <span className="mt-1.5 hidden flex-col gap-1 lg:flex">
+                {evs.map((e) => (
+                  <button
+                    key={e.id}
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      ctx.onEvent(e, date);
+                    }}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-lg bg-[color-mix(in_oklab,var(--c-brand-green)_16%,transparent)] px-1.5 py-1 text-left text-[12px] font-semibold text-ink",
+                      other && "opacity-50",
+                    )}
+                    title={`${EVENT_LABEL[e.type]} · solo equipo`}
+                  >
+                    <EventIcon type={e.type} className="size-3.5 shrink-0 text-brand-green" />
+                    <span className="truncate">{e.time ? `${e.time} ` : ""}{e.title}</span>
+                  </button>
+                ))}
                 {list.slice(0, 3).map((p) => (
                   <Link
                     key={p.id}
@@ -278,7 +375,10 @@ function MonthGrid({
                     onClick={(e) => e.stopPropagation()}
                     className={cn("flex items-center gap-2 rounded-lg p-1 pr-1.5 hover:bg-sunken", other && "opacity-50")}
                   >
-                    <Thumb media={p.thumb} format={p.format} className="h-9 w-[29px] shrink-0" rounded="rounded-[5px]" badge={false} />
+                    <span className="relative shrink-0">
+                      <Thumb media={p.thumb} format={p.format} className="h-9 w-[29px]" rounded="rounded-[5px]" badge={false} />
+                      <ClientDot id={p.clientId} ctx={ctx} className="absolute -left-1 -top-1" />
+                    </span>
                     <span className="min-w-0 flex-1 leading-tight" title={p.title}>
                       <span className="hidden truncate text-[12.5px] font-semibold 2xl:block">{p.title}</span>
                       <span className="flex items-center gap-1 text-[12px] font-semibold text-ink-2 2xl:hidden">
@@ -303,8 +403,9 @@ function MonthGrid({
   );
 }
 
-function DayPanel({ day, today, posts }: { day: string; today: string; posts: PostCardDTO[] }) {
+function DayPanel({ day, today, posts, events, ctx }: { day: string; today: string; posts: PostCardDTO[]; events: EventDTO[]; ctx: Ctx }) {
   const rel = relativeDay(day, today);
+  const empty = posts.length === 0 && events.length === 0;
   return (
     <section className="mt-9 lg:sticky lg:top-6 lg:mt-0 lg:self-start">
       <div className="mb-4 flex items-baseline justify-between gap-2">
@@ -313,41 +414,94 @@ function DayPanel({ day, today, posts }: { day: string; today: string; posts: Po
           {rel && <span className="ml-2 text-[14px] font-semibold text-accent-strong">{rel}</span>}
         </h2>
       </div>
-      {posts.length === 0 ? (
+      {empty ? (
         <div className="rounded-2xl border border-dashed border-line-strong px-5 py-8 text-center">
           <p className="text-[15px] font-semibold">Día libre</p>
           <p className="mt-0.5 text-[14px] text-muted">No hay nada planificado.</p>
-          <Link href={`/posts/nuevo?fecha=${day}`} className="btn-primary btn-sm mt-4">
-            <Plus className="size-4" strokeWidth={2.5} /> Agregar pieza
-          </Link>
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <Link href={`/posts/nuevo?fecha=${day}`} className="btn-primary btn-sm">
+              <Plus className="size-4" strokeWidth={2.5} /> Pieza
+            </Link>
+            <button className="btn-ghost btn-sm" onClick={() => ctx.onEvent(null, day)}>
+              <Lock className="size-4" /> Evento interno
+            </button>
+          </div>
         </div>
       ) : (
         <>
+          {events.length > 0 && (
+            <ul className="mb-2.5 space-y-2">
+              {events.map((e) => (
+                <li key={e.id}>
+                  <EventRow event={e} ctx={ctx} />
+                </li>
+              ))}
+            </ul>
+          )}
           <ul className="space-y-2.5">
             {posts.map((p) => (
               <li key={p.id}>
-                <PostRow post={p} />
+                <PostRow post={p} ctx={ctx} />
               </li>
             ))}
           </ul>
-          <Link
-            href={`/posts/nuevo?fecha=${day}`}
-            className="mt-3 flex h-11 items-center justify-center gap-2 rounded-2xl border border-dashed border-line-strong text-[14px] font-semibold text-ink-2 hover:border-ink hover:text-ink"
-          >
-            <Plus className="size-4" strokeWidth={2.5} /> Otra pieza para este día
-          </Link>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Link
+              href={`/posts/nuevo?fecha=${day}`}
+              className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-dashed border-line-strong text-[14px] font-semibold text-ink-2 hover:border-ink hover:text-ink"
+            >
+              <Plus className="size-4" strokeWidth={2.5} /> Pieza
+            </Link>
+            <button
+              onClick={() => ctx.onEvent(null, day)}
+              className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-dashed border-line-strong text-[14px] font-semibold text-ink-2 hover:border-ink hover:text-ink"
+            >
+              <Lock className="size-4" /> Evento interno
+            </button>
+          </div>
         </>
       )}
     </section>
   );
 }
 
-function PostRow({ post: p }: { post: PostCardDTO }) {
+function EventRow({ event: e, ctx }: { event: EventDTO; ctx: Ctx }) {
+  const c = e.clientId ? ctx.clientsById.get(e.clientId) : null;
+  return (
+    <button
+      onClick={() => ctx.onEvent(e, e.date)}
+      className="flex w-full items-center gap-3 rounded-2xl border border-[color-mix(in_oklab,var(--c-brand-green)_35%,transparent)] bg-[color-mix(in_oklab,var(--c-brand-green)_12%,var(--c-surface))] p-3 text-left transition-colors hover:border-brand-green"
+    >
+      <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand-green text-white">
+        <EventIcon type={e.type} className="size-5" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[15px] font-semibold">{e.title}</span>
+        <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12.5px] text-ink-2">
+          {EVENT_LABEL[e.type]}
+          {e.time && <span>· {e.time}</span>}
+          {c && <span className="truncate">· {c.handle}</span>}
+        </span>
+      </span>
+      <span className="flex shrink-0 items-center gap-1 rounded-full bg-surface px-2 py-0.5 text-[11px] font-semibold text-muted">
+        <Lock className="size-3" /> Equipo
+      </span>
+    </button>
+  );
+}
+
+function PostRow({ post: p, ctx }: { post: PostCardDTO; ctx?: Ctx }) {
+  const c = ctx?.all ? ctx.clientsById.get(p.clientId) : undefined;
   return (
     <Link href={`/posts/${p.id}`} className="card flex gap-3 p-2.5 transition-colors hover:border-line-strong active:bg-sunken/50">
       <Thumb media={p.thumb} format={p.format} className="h-[76px] w-[61px] shrink-0" rounded="rounded-[10px]" />
       <div className="flex min-w-0 flex-1 flex-col justify-between py-0.5">
-        <div className="flex items-start justify-between gap-2">
+        <div>
+          {c && (
+            <p className="mb-0.5 flex items-center gap-1.5 text-[12px] font-semibold text-ink-2">
+              <ClientAvatar client={c} size={16} /> {c.handle}
+            </p>
+          )}
           <p className="line-clamp-2 text-[15px] font-semibold leading-snug">{p.title}</p>
         </div>
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
@@ -372,10 +526,11 @@ function PostRow({ post: p }: { post: PostCardDTO }) {
 
 /* ---------------- Lista ---------------- */
 
-function ListView({ posts, today, month }: { posts: PostCardDTO[]; today: string; month: string }) {
+function ListView({ posts, events, today, month, ctx }: { posts: PostCardDTO[]; events: EventDTO[]; today: string; month: string; ctx: Ctx }) {
   const [filter, setFilter] = useState<PostStatus | "all">("all");
   const shown = filter === "all" ? posts : posts.filter((p) => p.status === filter);
-  const days = [...new Set(shown.map((p) => p.date))];
+  const shownEvents = filter === "all" ? events : [];
+  const days = [...new Set([...shown.map((p) => p.date), ...shownEvents.map((e) => e.date)])].sort();
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -405,11 +560,18 @@ function ListView({ posts, today, month }: { posts: PostCardDTO[]; today: string
                 {formatDayLong(d)}
               </h3>
               <ul className="space-y-2">
+                {shownEvents
+                  .filter((e) => e.date === d)
+                  .map((e) => (
+                    <li key={e.id}>
+                      <EventRow event={e} ctx={ctx} />
+                    </li>
+                  ))}
                 {shown
                   .filter((p) => p.date === d)
                   .map((p) => (
                     <li key={p.id}>
-                      <PostRow post={p} />
+                      <PostRow post={p} ctx={ctx} />
                     </li>
                   ))}
               </ul>
