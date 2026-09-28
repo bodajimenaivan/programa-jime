@@ -127,10 +127,10 @@ export function Board({
 
   return (
     <div className="pb-8">
-      <div className="mx-auto max-w-[1400px] px-4 lg:px-8">
+      <div className="mx-auto max-w-[1400px] px-5 lg:px-8">
         <PageHeader title="Tareas" subtitle={`Lo que falta para que la grilla de ${clientName} salga a tiempo.`} />
         {/* Selector de columna (mobile) */}
-        <div className="no-scrollbar -mx-4 mb-3 flex gap-2 overflow-x-auto px-4 lg:hidden">
+        <div className="no-scrollbar -mx-5 mb-4 flex gap-2 overflow-x-auto px-5 lg:hidden">
           {TASK_COLUMNS.map((c) => (
             <button key={c.id} className="chip" data-on={mobileCol === c.id} onClick={() => scrollToCol(c.id)}>
               {c.label} <span className="opacity-60">{byCol[c.id].length}</span>
@@ -148,7 +148,7 @@ export function Board({
             const col = TASK_COLUMNS[Math.min(TASK_COLUMNS.length - 1, Math.max(0, i))].id;
             if (col !== mobileCol) setMobileCol(col);
           }}
-          className="no-scrollbar mx-auto flex max-w-[1400px] snap-x snap-mandatory gap-3 overflow-x-auto px-4 lg:grid lg:snap-none lg:grid-cols-4 lg:overflow-visible lg:px-8"
+          className="no-scrollbar mx-auto flex max-w-[1400px] snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 lg:grid lg:snap-none lg:grid-cols-4 lg:overflow-visible lg:px-8"
         >
           {TASK_COLUMNS.map((c) => (
             <Column

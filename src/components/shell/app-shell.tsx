@@ -83,7 +83,7 @@ export function AppShell({
         {/* Contenido */}
         <div className={cn("min-w-0", !immersive && "pb-[calc(76px+env(safe-area-inset-bottom))] lg:pb-0")}>
           {!immersive && (
-            <header className="no-print sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-line/70 bg-bg/85 px-3 backdrop-blur-md lg:hidden">
+            <header className="no-print sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-line/70 bg-bg/85 px-3.5 backdrop-blur-md lg:hidden">
               <ClientSwitcher variant="topbar" />
               <UserMenu user={user} workspaceName={workspaceName} />
             </header>

@@ -30,7 +30,7 @@ export function ReportView({
   const rate = data.months.map((_, i) => (t.reach[i] && t.interactions[i] !== null ? (t.interactions[i]! / t.reach[i]!) * 100 : null));
 
   return (
-    <div className="mx-auto max-w-[900px] px-4 pb-16 pt-5 lg:px-8 lg:pt-8 print:max-w-none print:p-0">
+    <div className="mx-auto max-w-[900px] px-5 pb-16 pt-6 lg:px-8 lg:pt-8 print:max-w-none print:p-0">
       <div className="no-print mb-6 flex items-center justify-between gap-3">
         <Link href={`/metricas?mes=${month}`} className="flex items-center gap-1.5 text-[14px] font-semibold text-ink-2 hover:text-ink">
           <ArrowLeft className="size-4" /> Métricas

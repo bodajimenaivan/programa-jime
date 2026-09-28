@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Archive, Check, Copy, ExternalLink, Pencil, Plus, RefreshCw } from "lucide-react";
+import { Archive, CalendarDays, Check, CheckCircle2, ExternalLink, Pencil, Plus, RefreshCw, Share2 } from "lucide-react";
 import type { Network } from "@/lib/db/schema";
 import { ClientAvatar } from "@/components/ui/avatar";
 import { NetworkIcon } from "@/components/ui/network-icon";
@@ -12,6 +12,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { archiveClient, resetShareLink, switchClient } from "../actions/clients";
 import { cn } from "@/lib/utils";
 import { absUrl, url } from "@/lib/base";
+import { shareLink } from "@/lib/share";
 
 type Row = {
   id: string;
@@ -33,7 +34,7 @@ export function ClientsView({ clients, activeId, startAdding }: { clients: Row[]
   const router = useRouter();
 
   return (
-    <div className="mx-auto max-w-4xl px-4 pb-10 lg:px-8">
+    <div className="mx-auto max-w-4xl px-5 pb-12 lg:px-8">
       <PageHeader
         title="Clientes"
         subtitle="Cada cliente es un perfil con su calendario, tareas, métricas y su propio link para aprobar."
@@ -55,7 +56,7 @@ export function ClientsView({ clients, activeId, startAdding }: { clients: Row[]
           </button>
         </div>
       ) : (
-        <ul className="grid gap-3 md:grid-cols-2">
+        <ul className="grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-2">
           {clients.map((c) => (
             <ClientCard
               key={c.id}
@@ -87,26 +88,23 @@ export function ClientsView({ clients, activeId, startAdding }: { clients: Row[]
 }
 
 function ClientCard({ client: c, active, onEdit, onOpen }: { client: Row; active: boolean; onEdit: () => void; onOpen: () => void }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
   const [origin, setOrigin] = useState("");
   const [busy, start] = useTransition();
   useEffect(() => setOrigin(absUrl("")), []);
-  const link = `${origin}/p/${c.shareToken}`;
+  const calendarPath = `/p/${c.shareToken}?vista=calendario`;
+  const approvePath = `/p/${c.shareToken}`;
 
-  const copy = async () => {
-    try {
-      if (navigator.share && window.matchMedia("(pointer: coarse)").matches) {
-        await navigator.share({ title: `Contenido de ${c.name}`, url: link });
-      } else {
-        await navigator.clipboard.writeText(link);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1800);
-      }
-    } catch {}
+  const share = async (key: string, path: string, title: string) => {
+    const res = await shareLink(`${origin}${path}`, title);
+    if (res === "copied") {
+      setCopied(key);
+      setTimeout(() => setCopied(null), 1800);
+    }
   };
 
   return (
-    <li className={cn("card p-4", active && "ring-2 ring-ink/80")}>
+    <li className={cn("card min-w-0 p-4", active && "ring-2 ring-ink/80")}>
       <div className="flex items-start gap-3">
         <button onClick={onOpen} className="shrink-0" aria-label={`Abrir ${c.name}`}>
           <ClientAvatar client={c} size={52} ring={c.changes > 0} />
@@ -135,27 +133,33 @@ function ClientCard({ client: c, active, onEdit, onOpen }: { client: Row; active
         <Stat n={c.approved} label="Aprobadas" tone="approved" />
       </div>
 
-      <div className="mt-4 rounded-xl bg-sunken/70 p-3">
-        <p className="eyebrow">Link de aprobación</p>
-        <p className="mt-1 truncate font-mono text-[12px] text-ink-2">{link || "…"}</p>
-        <div className="mt-2.5 flex flex-wrap gap-2">
-          <button className="btn-primary btn-sm" onClick={copy}>
-            {copied ? <Check className="size-4" /> : <Copy className="size-4" />} {copied ? "Copiado" : "Compartir"}
-          </button>
-          <a className="btn-ghost btn-sm" href={url(`/p/${c.shareToken}`)} target="_blank" rel="noreferrer">
-            <ExternalLink className="size-4" /> Ver como cliente
-          </a>
-          <button
-            className="btn-ghost btn-sm"
-            disabled={busy}
-            onClick={() => {
-              if (confirm("El link actual va a dejar de funcionar. ¿Generar uno nuevo?")) start(() => resetShareLink(c.id));
-            }}
-            title="Generar un link nuevo"
-          >
-            <RefreshCw className="size-4" />
-          </button>
-        </div>
+      <div className="mt-4 space-y-2.5 rounded-xl bg-sunken/70 p-3">
+        <p className="eyebrow">Links para el cliente</p>
+        <ShareRow
+          icon={<CalendarDays className="size-4" />}
+          title="Calendario completo"
+          hint="Ve todos los meses y puede aprobar desde ahí"
+          copied={copied === "cal"}
+          onShare={() => share("cal", calendarPath, `Calendario de ${c.name}`)}
+          viewHref={url(calendarPath)}
+        />
+        <ShareRow
+          icon={<CheckCircle2 className="size-4" />}
+          title="Solo lo que falta aprobar"
+          hint={c.review ? `${c.review} ${c.review === 1 ? "pieza esperando" : "piezas esperando"}` : "Nada pendiente ahora"}
+          copied={copied === "ok"}
+          onShare={() => share("ok", approvePath, `Para aprobar: ${c.name}`)}
+          viewHref={url(approvePath)}
+        />
+        <button
+          className="flex items-center gap-1.5 pt-1 text-[12.5px] text-muted hover:text-ink disabled:opacity-50"
+          disabled={busy}
+          onClick={() => {
+            if (confirm("Los links actuales van a dejar de funcionar. ¿Generar links nuevos?")) start(() => resetShareLink(c.id));
+          }}
+        >
+          <RefreshCw className="size-3.5" /> Generar links nuevos
+        </button>
       </div>
 
       <button
@@ -178,6 +182,39 @@ function Stat({ n, label, tone }: { n: number; label: string; tone: "review" | "
         {n}
       </p>
       <p className="mt-1 text-[11.5px] text-muted">{label}</p>
+    </div>
+  );
+}
+
+function ShareRow({
+  icon,
+  title,
+  hint,
+  copied,
+  onShare,
+  viewHref,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  hint: string;
+  copied: boolean;
+  onShare: () => void;
+  viewHref: string;
+}) {
+  return (
+    <div className="flex items-center gap-2.5 rounded-xl bg-surface p-2 pl-2.5">
+      <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-sunken text-ink-2">{icon}</span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[14px] font-semibold">{title}</p>
+        <p className="truncate text-[12px] text-muted">{hint}</p>
+      </div>
+      <a href={viewHref} target="_blank" rel="noreferrer" className="grid size-9 shrink-0 place-items-center rounded-full border border-line text-ink-2 hover:bg-sunken" aria-label={`Ver ${title}`}>
+        <ExternalLink className="size-4" />
+      </a>
+      <button className="btn-primary btn-sm size-9 shrink-0 px-0 sm:w-auto sm:px-3.5" onClick={onShare} aria-label={`Compartir ${title}`}>
+        {copied ? <Check className="size-4" /> : <Share2 className="size-4" />}
+        <span className="hidden sm:inline">{copied ? "Copiado" : "Compartir"}</span>
+      </button>
     </div>
   );
 }

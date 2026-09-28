@@ -1,17 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Check, MessageCircle, RotateCcw } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, MessageCircle, RotateCcw } from "lucide-react";
 import type { Comment, Network, PostFormat, PostStatus } from "@/lib/db/schema";
 import type { MediaDTO } from "@/lib/queries";
 import { FORMAT_LABEL } from "@/lib/constants";
-import { formatDayLong, relativeDay } from "@/lib/dates";
+import { WEEKDAYS_SHORT, formatDayLong, monthGrid, monthKey, monthLabel, parseISODate, relativeDay, shiftMonth } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { ClientAvatar } from "@/components/ui/avatar";
 import { NetworkIcon } from "@/components/ui/network-icon";
 import { Sheet } from "@/components/ui/sheet";
 import { LogoMark } from "@/components/ui/logo";
-import { StatusPill } from "@/components/post/bits";
+import { STATUS_VAR, StatusPill, Thumb } from "@/components/post/bits";
+import { MediaDownloads } from "@/components/post/downloads";
 import { PostPreview } from "@/components/post/preview";
 import { CommentList } from "@/components/post/comment-thread";
 import { useToast } from "@/components/ui/toast";
@@ -34,6 +35,8 @@ type ClientInfo = { name: string; handle: string; color: string; avatarId: strin
 const NAME_KEY = "grilla:reviewer";
 const PENDING: PostStatus[] = ["review"];
 
+type Tab = "pending" | "calendar" | "list";
+
 export function Portal({
   token,
   focus,
@@ -41,6 +44,8 @@ export function Portal({
   agency,
   client,
   items,
+  initialView,
+  initialMonth,
 }: {
   token: string;
   focus: string | null;
@@ -48,9 +53,18 @@ export function Portal({
   agency: string;
   client: ClientInfo;
   items: Item[];
+  /** "calendario" o "lista" desde el link (?vista=). */
+  initialView?: string | null;
+  /** Mes a mostrar primero (?mes=AAAA-MM). */
+  initialMonth?: string | null;
 }) {
   const pending = items.filter((i) => PENDING.includes(i.status));
-  const [tab, setTab] = useState<"pending" | "all">(pending.length && !focus ? "pending" : "all");
+  const [tab, setTab] = useState<Tab>(() => {
+    if (focus) return "list";
+    if (initialView === "calendario") return "calendar";
+    if (initialView === "lista") return "list";
+    return pending.length ? "pending" : "calendar";
+  });
   const [name, setName] = useState("");
   const [askName, setAskName] = useState<null | (() => void)>(null);
   const [toast, showToast] = useToast();
@@ -72,66 +86,76 @@ export function Portal({
     else setAskName(() => fn);
   };
 
-  const list = tab === "pending" ? pending : items;
+  const renderItem = (item: Item) => (
+    <PortalItem
+      key={item.id}
+      item={item}
+      token={token}
+      today={today}
+      client={client}
+      highlight={focus === item.id}
+      name={name}
+      withName={withName}
+      onDone={showToast}
+    />
+  );
 
   return (
     <div className="min-h-dvh">
       <header className="sticky top-0 z-20 border-b border-line/70 bg-bg/90 backdrop-blur-md">
-        <div className="mx-auto flex max-w-[560px] items-center gap-3 px-4 py-3">
+        <div className="mx-auto flex max-w-[640px] items-center gap-3 px-5 py-3">
           <ClientAvatar client={client} size={40} share={token} ring={pending.length > 0} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-[16px] font-semibold leading-tight">{client.name}</p>
             <p className="truncate text-[12.5px] text-muted">Contenido preparado por {agency}</p>
           </div>
         </div>
-        <div className="mx-auto flex max-w-[560px] gap-5 px-4">
+        <div className="no-scrollbar mx-auto flex max-w-[640px] gap-6 overflow-x-auto px-5">
           <TabButton on={tab === "pending"} onClick={() => setTab("pending")}>
-            Para aprobar {pending.length > 0 && <span className="ml-1 rounded-full bg-accent px-1.5 text-[11px] text-accent-ink">{pending.length}</span>}
+            Para aprobar {pending.length > 0 && <span className="ml-1.5 rounded-full bg-accent px-1.5 text-[11px] text-accent-ink">{pending.length}</span>}
           </TabButton>
-          <TabButton on={tab === "all"} onClick={() => setTab("all")}>
-            Calendario completo
+          <TabButton on={tab === "calendar"} onClick={() => setTab("calendar")}>
+            Calendario
+          </TabButton>
+          <TabButton on={tab === "list"} onClick={() => setTab("list")}>
+            Lista
           </TabButton>
         </div>
       </header>
 
-      <main className="mx-auto max-w-[560px] px-4 pb-24 pt-5">
-        {tab === "pending" && pending.length === 0 ? (
-          <div className="card mt-6 px-6 py-12 text-center">
-            <span className="mx-auto grid size-14 place-items-center rounded-full bg-[color-mix(in_oklab,var(--c-approved)_15%,transparent)] text-st-approved">
-              <Check className="size-7" strokeWidth={2.5} />
-            </span>
-            <p className="mt-4 font-display text-[22px] font-bold">Estás al día</p>
-            <p className="mt-1 text-[15px] text-muted">No hay nada esperando tu aprobación. Te avisamos cuando haya piezas nuevas.</p>
-            <button className="btn-ghost btn-sm mt-5" onClick={() => setTab("all")}>
-              Ver el calendario
-            </button>
-          </div>
-        ) : (
-          <>
-            {tab === "pending" && (
-              <p className="mb-5 text-[15px] text-ink-2">
+      <main className="mx-auto max-w-[640px] px-5 pb-24 pt-6">
+        {tab === "pending" &&
+          (pending.length === 0 ? (
+            <div className="card mt-2 px-6 py-12 text-center">
+              <span className="mx-auto grid size-14 place-items-center rounded-full bg-[color-mix(in_oklab,var(--c-approved)_15%,transparent)] text-st-approved">
+                <Check className="size-7" strokeWidth={2.5} />
+              </span>
+              <p className="mt-4 font-display text-[22px] font-bold">Estás al día</p>
+              <p className="mt-1 text-[15px] text-muted">No hay nada esperando tu aprobación. Te avisamos cuando haya piezas nuevas.</p>
+              <button className="btn-ghost btn-sm mt-5" onClick={() => setTab("calendar")}>
+                Ver el calendario
+              </button>
+            </div>
+          ) : (
+            <>
+              <p className="mb-6 text-[15px] leading-relaxed text-ink-2">
                 Hay <b>{pending.length}</b> {pending.length === 1 ? "pieza esperando" : "piezas esperando"} tu OK. Mirá cómo quedan y aprobá o
                 pedí cambios.
               </p>
-            )}
-            <ol className="space-y-10">
-              {list.map((item) => (
-                <PortalItem
-                  key={item.id}
-                  item={item}
-                  token={token}
-                  today={today}
-                  client={client}
-                  highlight={focus === item.id}
-                  name={name}
-                  withName={withName}
-                  onDone={showToast}
-                />
-              ))}
-            </ol>
-          </>
-        )}
-        <p className="mt-14 flex items-center justify-center gap-1.5 text-[12px] text-muted">
+              <ol className="space-y-12">{pending.map(renderItem)}</ol>
+            </>
+          ))}
+
+        {tab === "calendar" && <PortalCalendar items={items} today={today} initialMonth={initialMonth ?? null} renderItem={renderItem} />}
+
+        {tab === "list" &&
+          (items.length === 0 ? (
+            <p className="py-16 text-center text-[15px] text-muted">Todavía no hay contenido para mostrar.</p>
+          ) : (
+            <ol className="space-y-12">{items.map(renderItem)}</ol>
+          ))}
+
+        <p className="mt-16 flex items-center justify-center gap-1.5 text-[12px] text-muted">
           <LogoMark className="size-3.5" /> Hecho con grilla
         </p>
       </main>
@@ -150,6 +174,164 @@ export function Portal({
         }}
       />
       {toast}
+    </div>
+  );
+}
+
+/** Calendario mensual de solo lectura para el cliente: mes a mes, tocás un día y ves sus piezas. */
+function PortalCalendar({
+  items,
+  today,
+  initialMonth,
+  renderItem,
+}: {
+  items: Item[];
+  today: string;
+  initialMonth: string | null;
+  renderItem: (item: Item) => React.ReactNode;
+}) {
+  const firstMonth = () => {
+    if (initialMonth && /^\d{4}-\d{2}$/.test(initialMonth)) return initialMonth;
+    const upcoming = items.find((i) => i.date >= today);
+    return monthKey(upcoming?.date ?? today);
+  };
+  const [month, setMonth] = useState(firstMonth);
+  const pickDay = (m: string) => {
+    const inMonth = items.filter((i) => monthKey(i.date) === m);
+    if (monthKey(today) === m) return inMonth.find((i) => i.date >= today)?.date ?? today;
+    return inMonth[0]?.date ?? `${m}-01`;
+  };
+  const [selected, setSelected] = useState(() => pickDay(firstMonth()));
+  const list = useRef<HTMLDivElement>(null);
+  const touch = useRef<{ x: number; y: number } | null>(null);
+
+  const go = (m: string) => {
+    setMonth(m);
+    setSelected(pickDay(m));
+    // El link queda apuntando al mes que estás mirando (sirve para reenviarlo).
+    try {
+      const u = new URL(window.location.href);
+      u.searchParams.set("vista", "calendario");
+      u.searchParams.set("mes", m);
+      u.searchParams.delete("pieza");
+      window.history.replaceState(window.history.state, "", u);
+    } catch {}
+  };
+
+  const byDay = new Map<string, Item[]>();
+  for (const i of items) byDay.set(i.date, [...(byDay.get(i.date) ?? []), i]);
+  const inMonth = items.filter((i) => monthKey(i.date) === month);
+  const toApprove = inMonth.filter((i) => PENDING.includes(i.status)).length;
+  const dayItems = byDay.get(selected) ?? [];
+  const [year, name] = [month.slice(0, 4), monthLabel(month).split(" ")[0]];
+
+  return (
+    <div>
+      <div className="flex items-end justify-between gap-3">
+        <h2 className="font-display text-[28px] font-bold capitalize leading-none tracking-[-0.02em]">
+          {name} <span className="text-muted">{year}</span>
+        </h2>
+        <div className="flex items-center gap-1">
+          <button onClick={() => go(shiftMonth(month, -1))} className="grid size-10 place-items-center rounded-full border border-line bg-surface" aria-label="Mes anterior">
+            <ChevronLeft className="size-[18px]" />
+          </button>
+          <button onClick={() => go(monthKey(today))} className="h-10 rounded-full border border-line bg-surface px-3.5 text-[14px] font-semibold">
+            Hoy
+          </button>
+          <button onClick={() => go(shiftMonth(month, 1))} className="grid size-10 place-items-center rounded-full border border-line bg-surface" aria-label="Mes siguiente">
+            <ChevronRight className="size-[18px]" />
+          </button>
+        </div>
+      </div>
+      <p className="mb-5 mt-3 text-[14px] text-muted">
+        {inMonth.length === 0
+          ? "No hay contenido planificado este mes."
+          : `${inMonth.length} ${inMonth.length === 1 ? "pieza" : "piezas"} este mes${toApprove ? ` · ${toApprove} para aprobar` : ""}`}
+      </p>
+
+      <div
+        onTouchStart={(e) => (touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY })}
+        onTouchEnd={(e) => {
+          if (!touch.current) return;
+          const dx = e.changedTouches[0].clientX - touch.current.x;
+          const dy = e.changedTouches[0].clientY - touch.current.y;
+          touch.current = null;
+          if (Math.abs(dx) > 70 && Math.abs(dy) < 45) go(shiftMonth(month, dx < 0 ? 1 : -1));
+        }}
+      >
+        <div className="grid grid-cols-7 gap-1.5 pb-2">
+          {WEEKDAYS_SHORT.map((d) => (
+            <span key={d} className="text-center text-[11px] font-semibold uppercase tracking-wider text-muted">
+              {d}
+            </span>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-1.5">
+          {monthGrid(month)
+            .flat()
+            .map((date) => {
+              const day = byDay.get(date) ?? [];
+              const other = monthKey(date) !== month;
+              const first = day[0];
+              const sel = date === selected;
+              return (
+                <button
+                  key={date}
+                  onClick={() => {
+                    if (other) return go(monthKey(date));
+                    setSelected(date);
+                    if (day.length) setTimeout(() => list.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+                  }}
+                  className={cn(
+                    "relative flex aspect-[3/4] flex-col rounded-xl border p-1 text-left transition-colors",
+                    other ? "border-transparent opacity-40" : "border-line bg-surface",
+                    sel && !other && "border-ink! shadow-[0_0_0_1px_var(--c-ink)]",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "grid h-5 min-w-5 place-items-center self-start rounded-full px-1 text-[12px] font-semibold",
+                      date === today ? "bg-accent text-accent-ink" : "text-ink-2",
+                    )}
+                  >
+                    {parseISODate(date).d}
+                  </span>
+                  {first && (
+                    <span className="relative mt-1 block min-h-0 flex-1">
+                      <Thumb
+                        media={first.media[0] ?? null}
+                        format={first.format}
+                        rounded="rounded-md"
+                        badge={false}
+                        className="size-full"
+                      />
+                      <span className="absolute inset-x-0 bottom-0 h-[3px] rounded-b-md" style={{ background: STATUS_VAR[first.status] }} />
+                      {day.length > 1 && (
+                        <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-inverse px-1 text-[10px] font-bold text-inverse-ink">
+                          {day.length}
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+        </div>
+      </div>
+
+      <div ref={list} className="scroll-mt-28 pt-9">
+        <h3 className="mb-5 font-display text-[20px] font-bold first-letter:uppercase">
+          {formatDayLong(selected)}
+          {relativeDay(selected, today) && <span className="ml-2 text-[14px] font-semibold text-accent">{relativeDay(selected, today)}</span>}
+        </h3>
+        {dayItems.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-line-strong px-5 py-8 text-center text-[14.5px] text-muted">
+            Nada planificado este día. Tocá otro día con miniatura.
+          </p>
+        ) : (
+          <ol className="space-y-12">{dayItems.map((i) => renderItem(i))}</ol>
+        )}
+      </div>
     </div>
   );
 }
@@ -239,6 +421,11 @@ function PortalItem({
         client={client}
         share={token}
         className={cn(item.format !== "post" && item.format !== "carousel" && "mx-auto max-w-[380px]")}
+      />
+
+      <MediaDownloads
+        className="mt-3"
+        files={item.media.map((m) => ({ id: m.id, url: m.url, filename: m.filename, size: m.size, kind: m.kind }))}
       />
 
       {!locked && mode === null && (

@@ -49,7 +49,7 @@ export function MetricsView({
   const networks = red ? [red] : clientNetworks;
 
   return (
-    <div className="mx-auto max-w-[1200px] px-4 pb-12 lg:px-8">
+    <div className="mx-auto max-w-[1200px] px-5 pb-12 lg:px-8">
       <PageHeader
         title="Métricas"
         subtitle={`Cómo le fue a ${clientName} mes a mes.`}
@@ -81,7 +81,7 @@ export function MetricsView({
             <ChevronRight className="size-4" />
           </Link>
         </div>
-        <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 sm:mx-0 sm:px-0">
           <Link href={href(month, null)} className="chip" data-on={!red}>
             Todas
           </Link>

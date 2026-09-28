@@ -30,6 +30,7 @@ export default async function CalendarPage(props: PageProps<"/calendario">) {
       posts={posts}
       feed={feed}
       client={{ name: client.name, handle: client.handle, color: client.color, avatarId: client.avatarId }}
+      shareToken={client.shareToken}
     />
   );
 }

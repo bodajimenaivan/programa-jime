@@ -66,6 +66,7 @@ export function CalendarPage() {
       posts={data.posts}
       feed={data.feed}
       client={{ name: c.name, handle: c.handle, color: c.color, avatarId: c.avatarId }}
+      shareToken={c.shareToken}
     />
   );
 }
@@ -202,7 +203,7 @@ export function PortalPage({ token }: { token: string }) {
     );
   }
   const p = data as React.ComponentProps<typeof Portal>;
-  return <Portal token={token} focus={search.get("pieza")} today={p.today} agency={p.agency} client={p.client} items={p.items} />;
+  return <Portal token={token} focus={search.get("pieza")} initialView={search.get("vista")} initialMonth={search.get("mes")} today={p.today} agency={p.agency} client={p.client} items={p.items} />;
 }
 
 /* ---------------- Login y registro ---------------- */

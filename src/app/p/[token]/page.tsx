@@ -33,6 +33,8 @@ export default async function PortalPage(props: PageProps<"/p/[token]">) {
     <Portal
       token={token}
       focus={typeof sp.pieza === "string" ? sp.pieza : null}
+      initialView={typeof sp.vista === "string" ? sp.vista : null}
+      initialMonth={typeof sp.mes === "string" ? sp.mes : null}
       today={todayIn(workspace.timezone)}
       agency={workspace.name}
       client={{ name: client.name, handle: client.handle, color: client.color, avatarId: client.avatarId }}

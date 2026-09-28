@@ -117,7 +117,7 @@ export function MediaTray({
       }}
       className={cn("rounded-2xl transition-colors", over && "bg-accent-soft outline-2 outline-dashed outline-accent")}
     >
-      <div className="no-scrollbar -mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-wrap lg:px-0">
+      <div className="no-scrollbar -mx-5 flex gap-2.5 overflow-x-auto px-5 pb-1 lg:mx-0 lg:flex-wrap lg:px-0">
         {items.map((it, i) => (
           <div key={it.key} className="relative w-[112px] shrink-0 lg:w-[120px]">
             <div className="relative overflow-hidden rounded-xl bg-sunken" style={{ aspectRatio: ratio }}>

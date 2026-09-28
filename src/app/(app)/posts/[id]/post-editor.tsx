@@ -13,6 +13,7 @@ import { ClientAvatar } from "@/components/ui/avatar";
 import { NetworkIcon } from "@/components/ui/network-icon";
 import { FormatIcon, StatusDot } from "@/components/post/bits";
 import { PostPreview, PreviewLabel } from "@/components/post/preview";
+import { MediaDownloads } from "@/components/post/downloads";
 import { MediaTray, type TrayItem } from "@/components/post/media-tray";
 import { CommentThread } from "@/components/post/comment-thread";
 import { useToast } from "@/components/ui/toast";
@@ -178,7 +179,7 @@ export function PostEditor({
             {saveLabel}
           </button>
         </div>
-        <div className="flex px-4 lg:hidden">
+        <div className="flex px-5 lg:hidden">
           {(["edit", "preview"] as const).map((t) => (
             <button
               key={t}
@@ -194,11 +195,11 @@ export function PostEditor({
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-8 px-4 pb-32 pt-5 lg:grid-cols-[minmax(0,1fr)_400px] lg:px-8 lg:pb-16 lg:pt-8">
+      <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-8 px-5 pb-32 pt-6 lg:grid-cols-[minmax(0,1fr)_400px] lg:px-8 lg:pb-16 lg:pt-8">
         {/* Formulario */}
         <div className={cn("space-y-7", tab !== "edit" && "hidden lg:block")}>
           <Section label="Formato">
-            <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:flex-wrap lg:px-0">
+            <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 lg:mx-0 lg:flex-wrap lg:px-0">
               {FORMAT_ORDER.map((f) => (
                 <button key={f} type="button" className="chip" data-on={format === f} onClick={() => setFormat(f)}>
                   <FormatIcon format={f} className="size-4" /> {FORMAT_LABEL[f]}
@@ -314,6 +315,12 @@ export function PostEditor({
               <PreviewLabel format={format} />
             </div>
             <PostPreview format={format} media={previewMedia} caption={caption} client={client} />
+            <MediaDownloads
+              className="mt-3"
+              files={items
+                .filter((i) => i.state === "ready")
+                .map((i) => ({ id: i.key, url: i.url, filename: i.name, size: i.size, kind: i.kind }))}
+            />
             <div className="mt-5 rounded-2xl border border-line bg-surface p-4">
               <p className="text-[15px] font-semibold">¿Lista para el cliente?</p>
               <p className="mt-0.5 text-[13.5px] text-muted">

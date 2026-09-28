@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, MessageCircle, Plus, Film, GalleryHorizontalEnd } from "lucide-react";
+import { ChevronLeft, ChevronRight, MessageCircle, Plus, Film, GalleryHorizontalEnd, Share2 } from "lucide-react";
 import type { PostStatus } from "@/lib/db/schema";
 import type { PostCardDTO } from "@/lib/queries";
 import { STATUS_LABEL, STATUS_ORDER } from "@/lib/constants";
@@ -13,6 +13,9 @@ import { FormatIcon, FormatTag, StatusDot, StatusPill, STATUS_VAR, Thumb } from 
 import { NetworkIcon } from "@/components/ui/network-icon";
 import { ClientAvatar } from "@/components/ui/avatar";
 import { movePost } from "../actions/posts";
+import { useToast } from "@/components/ui/toast";
+import { shareLink } from "@/lib/share";
+import { absUrl } from "@/lib/base";
 
 type View = "mes" | "lista" | "feed";
 type ClientInfo = { name: string; handle: string; color: string; avatarId: string | null };
@@ -26,7 +29,9 @@ export function CalendarView({
   posts: initialPosts,
   feed,
   client,
+  shareToken,
 }: {
+  shareToken?: string;
   month: string;
   today: string;
   view: View;
@@ -37,6 +42,7 @@ export function CalendarView({
   client: ClientInfo;
 }) {
   const router = useRouter();
+  const [toast, showToast] = useToast();
   const [posts, setPosts] = useState(initialPosts);
   useEffect(() => setPosts(initialPosts), [initialPosts]);
 
@@ -59,9 +65,9 @@ export function CalendarView({
   const [year, monthName] = [month.slice(0, 4), monthLabel(month).split(" ")[0]];
 
   return (
-    <div className="mx-auto max-w-[1400px] px-4 pb-10 lg:px-8">
+    <div className="mx-auto max-w-[1400px] px-5 pb-12 lg:px-8">
       {/* Cabecera */}
-      <div className="flex items-end justify-between gap-3 pb-3 pt-5 lg:pt-8">
+      <div className="flex items-end justify-between gap-3 pb-4 pt-6 lg:pt-8">
         <h1 className="font-display text-[30px] font-bold capitalize leading-none tracking-[-0.02em] lg:text-[38px]">
           {view === "feed" ? "Feed" : monthName} {view !== "feed" && <span className="text-muted">{year}</span>}
         </h1>
@@ -80,7 +86,8 @@ export function CalendarView({
         )}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-4 pb-6">
+        <div className="flex w-full items-center justify-between gap-3 sm:w-auto">
         <div className="inline-flex rounded-full bg-sunken p-1">
           {(["mes", "lista", "feed"] as View[]).map((v) => (
             <Link
@@ -95,8 +102,20 @@ export function CalendarView({
             </Link>
           ))}
         </div>
+        {shareToken && (
+          <button
+            className="btn-ghost btn-sm shrink-0 px-3.5"
+            onClick={async () => {
+              const res = await shareLink(absUrl(`/p/${shareToken}?vista=calendario&mes=${month}`), `Calendario de ${client.name}`);
+              if (res === "copied") showToast("Link del calendario copiado. Mandáselo al cliente.");
+            }}
+          >
+            <Share2 className="size-4" /> <span>Compartir</span>
+          </button>
+        )}
+        </div>
         {view !== "feed" && counts.length > 0 && (
-          <div className="no-scrollbar -mx-4 flex w-[calc(100%+32px)] gap-3 overflow-x-auto px-4 text-[13px] text-ink-2 sm:mx-0 sm:w-auto sm:px-0">
+          <div className="no-scrollbar -mx-5 flex w-[calc(100%+40px)] gap-3.5 overflow-x-auto px-5 text-[13px] text-ink-2 sm:mx-0 sm:w-auto sm:px-0">
             <span className="shrink-0 font-semibold text-ink">{inMonth.length} {inMonth.length === 1 ? "pieza" : "piezas"}</span>
             {counts.map(([s, n]) => (
               <span key={s} className="flex shrink-0 items-center gap-1.5">
@@ -125,6 +144,7 @@ export function CalendarView({
 
       {view === "lista" && <ListView posts={inMonth} today={today} month={month} />}
       {view === "feed" && <FeedView posts={feed} client={client} />}
+      {toast}
     </div>
   );
 }
@@ -165,14 +185,14 @@ function MonthGrid({
         if (Math.abs(dx) > 70 && Math.abs(dy) < 45) onSwipe(dx < 0 ? 1 : -1);
       }}
     >
-      <div className="grid grid-cols-7 gap-1 pb-1.5 lg:gap-2">
+      <div className="grid grid-cols-7 gap-1.5 pb-2 lg:gap-2">
         {WEEKDAYS_SHORT.map((d) => (
           <span key={d} className="text-center text-[11px] font-semibold uppercase tracking-wider text-muted lg:text-left lg:pl-2">
             {d}
           </span>
         ))}
       </div>
-      <div className="grid grid-cols-7 gap-1 lg:gap-2">
+      <div className="grid grid-cols-7 gap-1.5 lg:gap-2">
         {weeks.flat().map((date) => {
           const list = byDay.get(date) ?? [];
           const other = monthKey(date) !== month;
@@ -286,8 +306,8 @@ function MonthGrid({
 function DayPanel({ day, today, posts }: { day: string; today: string; posts: PostCardDTO[] }) {
   const rel = relativeDay(day, today);
   return (
-    <section className="mt-6 lg:sticky lg:top-6 lg:mt-0 lg:self-start">
-      <div className="mb-3 flex items-baseline justify-between gap-2">
+    <section className="mt-9 lg:sticky lg:top-6 lg:mt-0 lg:self-start">
+      <div className="mb-4 flex items-baseline justify-between gap-2">
         <h2 className="font-display text-[20px] font-bold first-letter:uppercase">
           {formatDayLong(day)}
           {rel && <span className="ml-2 text-[14px] font-semibold text-accent">{rel}</span>}
@@ -303,7 +323,7 @@ function DayPanel({ day, today, posts }: { day: string; today: string; posts: Po
         </div>
       ) : (
         <>
-          <ul className="space-y-2">
+          <ul className="space-y-2.5">
             {posts.map((p) => (
               <li key={p.id}>
                 <PostRow post={p} />
@@ -359,7 +379,7 @@ function ListView({ posts, today, month }: { posts: PostCardDTO[]; today: string
 
   return (
     <div className="mx-auto max-w-2xl">
-      <div className="no-scrollbar -mx-4 mb-4 flex gap-2 overflow-x-auto px-4">
+      <div className="no-scrollbar -mx-5 mb-5 flex gap-2 overflow-x-auto px-5">
         <button className="chip" data-on={filter === "all"} onClick={() => setFilter("all")}>
           Todas
         </button>
