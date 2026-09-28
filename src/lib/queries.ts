@@ -134,12 +134,12 @@ export function getPostFull(postId: string, workspaceId: string, share?: string)
   return { post, media, comments };
 }
 
-/** Piezas que el cliente ve en su link (todo menos borradores). */
+/** Piezas que el cliente ve en su link (todas; los borradores aparecen como "En preparación"). */
 export function portalPosts(clientId: string, share: string) {
   const rows = db
     .select()
     .from(schema.posts)
-    .where(and(eq(schema.posts.clientId, clientId), ne(schema.posts.status, "draft")))
+    .where(eq(schema.posts.clientId, clientId))
     .orderBy(asc(schema.posts.date), asc(sql`coalesce(${schema.posts.time}, '99:99')`))
     .all();
   const ids = rows.map((r) => r.id);

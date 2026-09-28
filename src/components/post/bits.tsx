@@ -17,7 +17,7 @@ export function StatusDot({ status, className }: { status: PostStatus; className
   return <span className={cn("inline-block size-2 shrink-0 rounded-full", className)} style={{ background: STATUS_VAR[status] }} />;
 }
 
-export function StatusPill({ status, className }: { status: PostStatus; className?: string }) {
+export function StatusPill({ status, className, label }: { status: PostStatus; className?: string; label?: string }) {
   return (
     <span
       className={cn("inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-semibold", className)}
@@ -27,7 +27,7 @@ export function StatusPill({ status, className }: { status: PostStatus; classNam
       }}
     >
       <StatusDot status={status} className="size-1.5" />
-      {STATUS_LABEL[status]}
+      {label ?? STATUS_LABEL[status]}
     </span>
   );
 }

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { newId } from "@/lib/auth";
 
@@ -14,7 +14,7 @@ export async function clientFeedback(token: string, postId: string, kind: Kind, 
   const post = db
     .select()
     .from(schema.posts)
-    .where(and(eq(schema.posts.id, postId), eq(schema.posts.clientId, client.id), ne(schema.posts.status, "draft")))
+    .where(and(eq(schema.posts.id, postId), eq(schema.posts.clientId, client.id)))
     .get();
   if (!post) return { error: "No encontramos esa pieza." };
 
@@ -22,6 +22,7 @@ export async function clientFeedback(token: string, postId: string, kind: Kind, 
   const text = body.trim().slice(0, 4000);
   if (kind === "comment" && !text) return { error: "Escribí algo antes de enviar." };
   if (kind === "changes" && !text) return { error: "Contanos qué te gustaría cambiar." };
+  if (kind !== "comment" && post.status === "draft") return { error: "Esta pieza todavía está en preparación." };
   if (kind !== "comment" && (post.status === "published" || post.status === "scheduled")) {
     return { error: "Esta pieza ya está programada o publicada." };
   }

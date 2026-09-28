@@ -372,7 +372,8 @@ function PortalItem({
   const [pending, start] = useTransition();
   const box = useRef<HTMLTextAreaElement>(null);
   const rel = relativeDay(item.date, today);
-  const locked = item.status === "published" || item.status === "scheduled";
+  const draft = item.status === "draft";
+  const locked = draft || item.status === "published" || item.status === "scheduled";
 
   useEffect(() => {
     if (mode) box.current?.focus();
@@ -411,7 +412,7 @@ function PortalItem({
             </span>
           </p>
         </div>
-        <StatusPill status={item.status} />
+        <StatusPill status={item.status} label={draft ? "En preparación" : undefined} />
       </div>
 
       <PostPreview
@@ -427,6 +428,12 @@ function PortalItem({
         className="mt-3"
         files={item.media.map((m) => ({ id: m.id, url: m.url, filename: m.filename, size: m.size, kind: m.kind }))}
       />
+
+      {draft && mode === null && (
+        <p className="mt-4 rounded-xl bg-sunken/70 px-4 py-3 text-[14px] text-ink-2">
+          El equipo todavía está preparando esta pieza. Cuando esté lista para aprobar, vas a ver los botones acá. Si querés, dejale un comentario.
+        </p>
+      )}
 
       {!locked && mode === null && (
         <div className="mt-4 grid grid-cols-2 gap-2">

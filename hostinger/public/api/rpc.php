@@ -596,7 +596,7 @@ function api_portalPage(string $token): array
     $client = client_by_token($token);
     if (!$client) return ['notFound' => true];
     $ws = one('SELECT * FROM g_workspaces WHERE id = ?', [$client['workspace_id']]);
-    $posts = all("SELECT * FROM g_posts WHERE client_id = ? AND status <> 'draft' ORDER BY `date`, COALESCE(`time`, '99:99')", [$client['id']]);
+    $posts = all("SELECT * FROM g_posts WHERE client_id = ? ORDER BY `date`, COALESCE(`time`, '99:99')", [$client['id']]);
     $ids = array_column($posts, 'id');
     $media = media_by_post($ids);
     $comments = $ids ? all('SELECT * FROM g_comments WHERE post_id IN (' . in_list($ids) . ') ORDER BY created_at', $ids) : [];
@@ -620,12 +620,13 @@ function api_clientFeedback(string $token, string $postId, string $kind, string 
     $client = client_by_token($token);
     if (!$client) return ['error' => 'El link ya no es válido.'];
     if (!in_array($kind, ['approved', 'changes', 'comment'], true)) return ['error' => 'Acción inválida.'];
-    $post = one("SELECT * FROM g_posts WHERE id = ? AND client_id = ? AND status <> 'draft'", [$postId, $client['id']]);
+    $post = one('SELECT * FROM g_posts WHERE id = ? AND client_id = ?', [$postId, $client['id']]);
     if (!$post) return ['error' => 'No encontramos esa pieza.'];
     $author = mb_substr(trim($name), 0, 60) ?: $client['name'];
     $text = mb_substr(trim($body), 0, 4000);
     if ($kind === 'comment' && $text === '') return ['error' => 'Escribí algo antes de enviar.'];
     if ($kind === 'changes' && $text === '') return ['error' => 'Contanos qué te gustaría cambiar.'];
+    if ($kind !== 'comment' && $post['status'] === 'draft') return ['error' => 'Esta pieza todavía está en preparación.'];
     if ($kind !== 'comment' && in_array($post['status'], ['published', 'scheduled'], true)) return ['error' => 'Esta pieza ya está programada o publicada.'];
     $now = now_ms();
     q('INSERT INTO g_comments (id, post_id, author_kind, author_name, user_id, kind, body, created_at) VALUES (?,?,?,?,NULL,?,?,?)',

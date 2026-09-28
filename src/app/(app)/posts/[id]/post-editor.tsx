@@ -269,6 +269,13 @@ export function PostEditor({
                 </button>
               ))}
             </div>
+            <p className="mt-2.5 text-[12.5px] leading-relaxed text-muted">
+              {status === "draft"
+                ? "El cliente la ve en su calendario como “En preparación”, sin poder aprobarla todavía."
+                : status === "review" || status === "changes"
+                  ? "El cliente la ve con los botones para aprobar o pedir cambios."
+                  : "El cliente la ve en su calendario."}
+            </p>
           </Section>
 
           <div>
