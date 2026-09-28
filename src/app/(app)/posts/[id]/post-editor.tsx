@@ -18,6 +18,7 @@ import { MediaTray, type TrayItem } from "@/components/post/media-tray";
 import { CommentThread } from "@/components/post/comment-thread";
 import { useToast } from "@/components/ui/toast";
 import { CopyButton } from "@/components/ui/copy-button";
+import { PeoplePicker, type Person } from "@/components/team/people-picker";
 import { deletePost, duplicatePost, savePost, savePostMetrics } from "../../actions/posts";
 
 type Initial = {
@@ -30,12 +31,14 @@ type Initial = {
   status: PostStatus;
   notes: string;
   postMetrics: PostMetrics | null;
+  assigneeId?: string | null;
 };
 
 export function PostEditor({
   id,
   client: initialClient,
   clients = [],
+  team = [],
   initial,
   media,
   comments,
@@ -44,6 +47,8 @@ export function PostEditor({
   client: Client;
   /** Para poder elegir o cambiar de cliente desde el editor. */
   clients?: Client[];
+  /** Personas del equipo (para "A cargo de"). */
+  team?: Person[];
   initial: Initial;
   media: MediaDTO[];
   comments: Comment[];
@@ -64,6 +69,7 @@ export function PostEditor({
   const [caption, setCaption] = useState(initial.caption);
   const [status, setStatus] = useState<PostStatus>(initial.status);
   const [notes, setNotes] = useState(initial.notes);
+  const [assignee, setAssignee] = useState<string[]>(initial.assigneeId ? [initial.assigneeId] : []);
   const [items, setItems] = useState<TrayItem[]>(() =>
     media.map((m) => ({
       key: m.id,
@@ -79,7 +85,7 @@ export function PostEditor({
     })),
   );
 
-  const snapshot = JSON.stringify([clientId, format, networks, date, time, title, caption, status, notes, items.map((i) => i.id ?? i.key)]);
+  const snapshot = JSON.stringify([assignee, clientId, format, networks, date, time, title, caption, status, notes, items.map((i) => i.id ?? i.key)]);
   const [saved, setSaved] = useState(snapshot);
   const dirty = snapshot !== saved;
 
@@ -125,6 +131,7 @@ export function PostEditor({
           time: time || null,
           status: st,
           notes,
+          assigneeId: assignee[0] ?? null,
           mediaIds: items.filter((i) => i.state === "ready" && i.id).map((i) => i.id!),
         });
         if ("error" in res) {
@@ -133,7 +140,7 @@ export function PostEditor({
           return;
         }
         setStatus(st);
-        setSaved(JSON.stringify([clientId, format, networks, date, time, title, caption, st, notes, items.map((i) => i.id ?? i.key)]));
+        setSaved(JSON.stringify([assignee, clientId, format, networks, date, time, title, caption, st, notes, items.map((i) => i.id ?? i.key)]));
         if (!id) router.replace(`/posts/${res.id}`);
         else router.refresh();
         resolve(res.id);
@@ -312,6 +319,12 @@ export function PostEditor({
                   : "El cliente la ve en su calendario."}
             </p>
           </Section>
+
+          {team.length > 0 && (
+            <Section label="A cargo de">
+              <PeoplePicker people={team} value={assignee} onChange={setAssignee} emptyLabel="Sin asignar" />
+            </Section>
+          )}
 
           <div>
             <label className="label" htmlFor="notes">

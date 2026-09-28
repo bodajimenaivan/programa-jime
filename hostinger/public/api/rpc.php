@@ -20,6 +20,7 @@ $API = [
     // calendario y piezas
     'calendarData', 'saveEvent', 'deleteEvent', 'postPage', 'savePost', 'deletePost', 'movePost', 'setPostStatus', 'addTeamComment', 'savePostMetrics', 'duplicatePost',
     // tareas
+    'teamPage', 'saveMember', 'deleteMember',
     'tasksPage', 'createTask', 'updateTask', 'deleteTask',
     // métricas
     'metricsData', 'saveMonthMetrics',
@@ -88,6 +89,8 @@ function api_register(string $name, string $agency, string $email, string $passw
     q('INSERT INTO g_workspaces (id, name, timezone, created_at) VALUES (?,?,?,?)', [$ws, $agency !== '' ? $agency : "Equipo de $first", DEFAULT_TZ, $now]);
     q('INSERT INTO g_users (id, workspace_id, name, email, password_hash, color, role, created_at) VALUES (?,?,?,?,?,?,?,?)',
         [$uid, $ws, $name, $email, password_hash($password, PASSWORD_DEFAULT), SWATCHES[0], 'owner', $now]);
+    q('INSERT INTO g_team (id, workspace_id, user_id, name, role, color, email, phone, created_at) VALUES (?,?,?,?,?,?,?,?,?)',
+        [$uid, $ws, $uid, $name, '', SWATCHES[0], $email, '', $now]);
     db()->commit();
     create_session($uid);
     return ['ok' => true];
@@ -246,7 +249,7 @@ function to_cards(array $posts): array
     return array_map(function ($p) use ($media, $comments) {
         $list = $media[$p['id']] ?? [];
         return [
-            'id' => $p['id'], 'clientId' => $p['client_id'], 'title' => $p['title'], 'caption' => $p['caption'], 'format' => $p['format'],
+            'id' => $p['id'], 'clientId' => $p['client_id'], 'assigneeId' => $p['assignee_id'] ?? null, 'title' => $p['title'], 'caption' => $p['caption'], 'format' => $p['format'],
             'status' => $p['status'], 'date' => $p['date'], 'time' => $p['time'],
             'networks' => json_decode($p['networks'], true) ?: [],
             'thumb' => $list ? dto_media($list[0]) : null,
@@ -265,19 +268,16 @@ function api_calendarData(string $from, string $to, bool $withFeed, string $scop
     $all = $scope === 'todos';
     $ids = $all ? array_column(active_clients($u['workspace_id']), 'id') : [$client['id']];
     $posts = all("SELECT * FROM g_posts WHERE client_id IN (" . in_list($ids) . ") AND `date` BETWEEN ? AND ? ORDER BY `date`, COALESCE(`time`, '99:99'), created_at", array_merge($ids, [$from, $to]));
-    $evSql = 'SELECT id, client_id, type, title, `date`, `time`, notes FROM g_events WHERE workspace_id = ? AND `date` BETWEEN ? AND ?' . ($all ? '' : ' AND (client_id = ? OR client_id IS NULL)') . " ORDER BY `date`, COALESCE(`time`, '00:00')";
+    $evSql = 'SELECT id, client_id, type, title, `date`, `time`, notes, people FROM g_events WHERE workspace_id = ? AND `date` BETWEEN ? AND ?' . ($all ? '' : ' AND (client_id = ? OR client_id IS NULL)') . " ORDER BY `date`, COALESCE(`time`, '00:00')";
     $evParams = $all ? [$u['workspace_id'], $from, $to] : [$u['workspace_id'], $from, $to, $client['id']];
-    $events = array_map(fn($e) => [
-        'id' => $e['id'], 'clientId' => $e['client_id'], 'type' => $e['type'], 'title' => $e['title'],
-        'date' => $e['date'], 'time' => $e['time'], 'notes' => $e['notes'],
-    ], all($evSql, $evParams));
+    $events = array_map('dto_event', all($evSql, $evParams));
     $feed = [];
     if ($withFeed) {
         $rows = all("SELECT * FROM g_posts WHERE client_id = ? AND format IN ('post','carousel','reel') ORDER BY `date` DESC, COALESCE(`time`, '00:00') DESC LIMIT 60", [$client['id']]);
         $rows = array_values(array_filter($rows, fn($p) => in_array('instagram', json_decode($p['networks'], true) ?: [], true)));
         $feed = to_cards($rows);
     }
-    return ['clientId' => $client['id'], 'posts' => to_cards($posts), 'feed' => $feed, 'events' => $events];
+    return ['clientId' => $client['id'], 'posts' => to_cards($posts), 'feed' => $feed, 'events' => $events, 'team' => team_list($u['workspace_id'])];
 }
 
 function api_saveEvent(array $in): array
@@ -294,14 +294,16 @@ function api_saveEvent(array $in): array
     if (!in_array($type, ['shoot', 'meeting', 'delivery', 'other'], true)) return ['error' => 'Tipo inválido.'];
     if ($clientId !== '') client_access($u['workspace_id'], $clientId);
     $notes = mb_substr((string)($in['notes'] ?? ''), 0, 4000);
+    $members = array_column(all('SELECT id FROM g_team WHERE workspace_id = ?', [$u['workspace_id']]), 'id');
+    $people = json_encode(array_values(array_intersect(is_array($in['people'] ?? null) ? array_map('strval', $in['people']) : [], $members)));
     $id = (string)($in['id'] ?? '');
     if ($id !== '') {
         if (!one('SELECT id FROM g_events WHERE id = ? AND workspace_id = ?', [$id, $u['workspace_id']])) return ['error' => 'Evento no encontrado.'];
-        q('UPDATE g_events SET client_id=?, type=?, title=?, `date`=?, `time`=?, notes=? WHERE id=?', [$clientId ?: null, $type, $title, $date, $time ?: null, $notes, $id]);
+        q('UPDATE g_events SET client_id=?, type=?, title=?, `date`=?, `time`=?, notes=?, people=? WHERE id=?', [$clientId ?: null, $type, $title, $date, $time ?: null, $notes, $people, $id]);
     } else {
         $id = new_id();
-        q('INSERT INTO g_events (id, workspace_id, client_id, type, title, `date`, `time`, notes, created_by, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)',
-            [$id, $u['workspace_id'], $clientId ?: null, $type, $title, $date, $time ?: null, $notes, $u['id'], now_ms()]);
+        q('INSERT INTO g_events (id, workspace_id, client_id, type, title, `date`, `time`, notes, people, created_by, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+            [$id, $u['workspace_id'], $clientId ?: null, $type, $title, $date, $time ?: null, $notes, $people, $u['id'], now_ms()]);
     }
     return ['id' => $id];
 }
@@ -332,6 +334,7 @@ function api_postPage(string $id, string $fecha): array
         return [
             'client' => $c,
             'clients' => array_map('dto_client', active_clients($u['workspace_id'])),
+            'team' => team_list($u['workspace_id']),
             'initial' => [
                 'format' => 'post',
                 'networks' => in_array('instagram', $c['networks'], true) ? ['instagram'] : [$c['networks'][0] ?? 'instagram'],
@@ -345,7 +348,7 @@ function api_postPage(string $id, string $fecha): array
     $client = one('SELECT * FROM g_clients WHERE id = ?', [$p['client_id']]);
     $media = array_map(fn($m) => dto_media($m), media_by_post([$p['id']])[$p['id']] ?? []);
     $comments = array_map('dto_comment', all('SELECT * FROM g_comments WHERE post_id = ? ORDER BY created_at', [$p['id']]));
-    return ['id' => $p['id'], 'client' => dto_client($client), 'clients' => array_map('dto_client', active_clients($u['workspace_id'])), 'initial' => dto_post($p), 'media' => $media, 'comments' => $comments];
+    return ['id' => $p['id'], 'client' => dto_client($client), 'clients' => array_map('dto_client', active_clients($u['workspace_id'])), 'team' => team_list($u['workspace_id']), 'initial' => dto_post($p), 'media' => $media, 'comments' => $comments];
 }
 
 function status_comment(string $postId, array $u, string $status, int $now): void
@@ -377,6 +380,8 @@ function api_savePost(array $in): array
     $caption = mb_substr((string)($in['caption'] ?? ''), 0, 2200);
     $notes = mb_substr((string)($in['notes'] ?? ''), 0, 8000);
     $id = (string)($in['id'] ?? '');
+    $assignee = (string)($in['assigneeId'] ?? '');
+    if ($assignee !== '' && !one('SELECT id FROM g_team WHERE id = ? AND workspace_id = ?', [$assignee, $u['workspace_id']])) $assignee = '';
     $mediaIds = array_values(array_unique(array_map('strval', is_array($in['mediaIds'] ?? null) ? $in['mediaIds'] : [])));
 
     $valid = [];
@@ -393,8 +398,8 @@ function api_savePost(array $in): array
     try {
         if ($id !== '') {
             $existing = own_post($u['workspace_id'], $id);
-            q('UPDATE g_posts SET client_id=?, title=?, caption=?, format=?, networks=?, `date`=?, `time`=?, status=?, notes=?, updated_at=? WHERE id=?',
-                [$clientId, $title, $caption, $format, json_encode($networks), $date, $time ?: null, $status, $notes, $now, $id]);
+            q('UPDATE g_posts SET client_id=?, title=?, caption=?, format=?, networks=?, `date`=?, `time`=?, status=?, notes=?, assignee_id=?, updated_at=? WHERE id=?',
+                [$clientId, $title, $caption, $format, json_encode($networks), $date, $time ?: null, $status, $notes, $assignee ?: null, $now, $id]);
             $current = all('SELECT id, poster_id FROM g_media WHERE post_id = ?', [$id]);
             $posterIds = array_filter(array_column($current, 'poster_id'));
             foreach ($current as $c) {
@@ -403,8 +408,8 @@ function api_savePost(array $in): array
             if ($existing['status'] !== $status) status_comment($id, $u, $status, $now);
         } else {
             $id = new_id();
-            q('INSERT INTO g_posts (id, workspace_id, client_id, title, caption, format, networks, `date`, `time`, status, notes, post_metrics, created_by, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,NULL,?,?,?)',
-                [$id, $u['workspace_id'], $clientId, $title, $caption, $format, json_encode($networks), $date, $time ?: null, $status, $notes, $u['id'], $now, $now]);
+            q('INSERT INTO g_posts (id, workspace_id, client_id, title, caption, format, networks, `date`, `time`, status, notes, post_metrics, assignee_id, created_by, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,NULL,?,?,?,?)',
+                [$id, $u['workspace_id'], $clientId, $title, $caption, $format, json_encode($networks), $date, $time ?: null, $status, $notes, $assignee ?: null, $u['id'], $now, $now]);
         }
         foreach ($ordered as $pos => $mid) {
             q('UPDATE g_media SET post_id = ?, position = ? WHERE id = ?', [$id, $pos, $mid]);
@@ -497,6 +502,62 @@ function api_duplicatePost(string $id): array
     return ['id' => $newId];
 }
 
+/* ======================= Mi equipo ======================= */
+
+function api_teamPage(): array
+{
+    $u = require_user();
+    $ws = workspace_of($u);
+    $today = today_in($ws['timezone']);
+    $tasks = all("SELECT id, title, status, priority, due_date, client_id, assignee_id FROM g_tasks WHERE workspace_id = ? AND status <> 'done' ORDER BY COALESCE(due_date, '9999')", [$u['workspace_id']]);
+    $posts = all("SELECT id, title, `date`, `time`, format, status, client_id, assignee_id FROM g_posts WHERE workspace_id = ? AND `date` >= ? AND status <> 'published' ORDER BY `date`", [$u['workspace_id'], $today]);
+    $events = all("SELECT * FROM g_events WHERE workspace_id = ? AND `date` >= ? ORDER BY `date`, COALESCE(`time`, '00:00')", [$u['workspace_id'], $today]);
+    return [
+        'today' => $today,
+        'members' => team_list($u['workspace_id']),
+        'clients' => array_map(fn($c) => ['id' => $c['id'], 'name' => $c['name'], 'handle' => $c['handle'], 'color' => $c['color'], 'avatarId' => $c['avatar_id']], active_clients($u['workspace_id'])),
+        'agenda' => [
+            'tasks' => array_map(fn($t) => ['id' => $t['id'], 'title' => $t['title'], 'status' => $t['status'], 'priority' => $t['priority'], 'dueDate' => $t['due_date'], 'clientId' => $t['client_id'], 'assigneeId' => $t['assignee_id']], $tasks),
+            'posts' => array_map(fn($p) => ['id' => $p['id'], 'title' => $p['title'], 'date' => $p['date'], 'time' => $p['time'], 'format' => $p['format'], 'status' => $p['status'], 'clientId' => $p['client_id'], 'assigneeId' => $p['assignee_id']], $posts),
+            'events' => array_map('dto_event', $events),
+        ],
+    ];
+}
+
+function api_saveMember(array $in): array
+{
+    $u = require_user();
+    $name = mb_substr(trim((string)($in['name'] ?? '')), 0, 80);
+    if ($name === '') return ['error' => 'Poné el nombre.'];
+    $role = mb_substr(trim((string)($in['role'] ?? '')), 0, 60);
+    $color = preg_match('/^#[0-9a-f]{6}$/i', (string)($in['color'] ?? '')) ? $in['color'] : SWATCHES[0];
+    $email = mb_substr(trim((string)($in['email'] ?? '')), 0, 120);
+    $phone = mb_substr(trim((string)($in['phone'] ?? '')), 0, 40);
+    $id = (string)($in['id'] ?? '');
+    if ($id !== '') {
+        $m = one('SELECT * FROM g_team WHERE id = ? AND workspace_id = ?', [$id, $u['workspace_id']]);
+        if (!$m) return ['error' => 'No encontramos a esa persona.'];
+        q('UPDATE g_team SET name=?, role=?, color=?, email=?, phone=? WHERE id=?', [$name, $role, $color, $email, $phone, $id]);
+        if ($m['user_id']) q('UPDATE g_users SET name=?, color=? WHERE id=?', [$name, $color, $m['user_id']]);
+        return ['id' => $id];
+    }
+    $id = new_id();
+    q('INSERT INTO g_team (id, workspace_id, user_id, name, role, color, email, phone, created_at) VALUES (?,?,NULL,?,?,?,?,?,?)',
+        [$id, $u['workspace_id'], $name, $role, $color, $email, $phone, now_ms()]);
+    return ['id' => $id];
+}
+
+function api_deleteMember(string $id): bool
+{
+    $u = require_user();
+    $m = one('SELECT * FROM g_team WHERE id = ? AND workspace_id = ?', [$id, $u['workspace_id']]);
+    if (!$m || $m['user_id']) return true; // la cuenta principal no se borra desde acá
+    q('DELETE FROM g_team WHERE id = ?', [$id]);
+    q('UPDATE g_tasks SET assignee_id = NULL WHERE assignee_id = ?', [$id]);
+    q('UPDATE g_posts SET assignee_id = NULL WHERE assignee_id = ?', [$id]);
+    return true;
+}
+
 /* ======================= Tareas ======================= */
 
 function api_tasksPage(): array
@@ -510,7 +571,7 @@ function api_tasksPage(): array
         'clientName' => $client['name'],
         'today' => today_in($ws['timezone']),
         'tasks' => array_map('dto_task', all('SELECT * FROM g_tasks WHERE client_id = ? ORDER BY position', [$client['id']])),
-        'people' => all('SELECT id, name, color FROM g_users WHERE workspace_id = ?', [$u['workspace_id']]),
+        'people' => all('SELECT id, name, color FROM g_team WHERE workspace_id = ? ORDER BY created_at', [$u['workspace_id']]),
         'posts' => all('SELECT id, title, `date` FROM g_posts WHERE client_id = ? ORDER BY `date` DESC LIMIT 80', [$client['id']]),
     ];
 }
@@ -554,7 +615,7 @@ function api_updateTask(string $id, array $patch): bool
     if (isset($patch['position']) && is_numeric($patch['position'])) { $set[] = 'position = ?'; $params[] = (float)$patch['position']; }
     if (array_key_exists('assigneeId', $patch)) {
         $a = (string)($patch['assigneeId'] ?? '');
-        $ok = $a !== '' && one('SELECT id FROM g_users WHERE id = ? AND workspace_id = ?', [$a, $u['workspace_id']]);
+        $ok = $a !== '' && one('SELECT id FROM g_team WHERE id = ? AND workspace_id = ?', [$a, $u['workspace_id']]);
         $set[] = 'assignee_id = ?';
         $params[] = $ok ? $a : null;
     }

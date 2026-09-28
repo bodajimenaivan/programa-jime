@@ -74,9 +74,9 @@ export async function updateTask(id: string, patch: TaskPatch) {
     const ok =
       patch.assigneeId &&
       db
-        .select({ id: schema.users.id })
-        .from(schema.users)
-        .where(and(eq(schema.users.id, patch.assigneeId), eq(schema.users.workspaceId, user.workspaceId)))
+        .select({ id: schema.team.id })
+        .from(schema.team)
+        .where(and(eq(schema.team.id, patch.assigneeId), eq(schema.team.workspaceId, user.workspaceId)))
         .get();
     clean.assigneeId = ok ? patch.assigneeId : null;
   }

@@ -13,6 +13,7 @@ import {
   PostPage,
   ReportPage,
   TasksPage,
+  TeamPage,
 } from "./pages";
 
 function Redirect({ to }: { to: string }) {
@@ -38,6 +39,7 @@ function App() {
   else if (path === "/metricas") page = <MetricsPage />;
   else if (path === "/metricas/reporte") page = <ReportPage />;
   else if (path === "/clientes") page = <ClientsPage />;
+  else if (path === "/equipo") page = <TeamPage />;
   else return <NotFound />;
 
   return <AppLayout>{page}</AppLayout>;

@@ -30,7 +30,7 @@ export function toMediaDTO(m: Media, share?: string): MediaDTO {
   };
 }
 
-export type PostCardDTO = Pick<Post, "id" | "clientId" | "title" | "format" | "status" | "date" | "time" | "networks" | "caption"> & {
+export type PostCardDTO = Pick<Post, "id" | "clientId" | "assigneeId" | "title" | "format" | "status" | "date" | "time" | "networks" | "caption"> & {
   thumb: MediaDTO | null;
   mediaCount: number;
   comments: number;
@@ -81,6 +81,7 @@ function toCards(posts: Post[], share?: string): PostCardDTO[] {
     return {
       id: p.id,
       clientId: p.clientId,
+      assigneeId: p.assigneeId,
       title: p.title,
       caption: p.caption,
       format: p.format,
@@ -156,7 +157,7 @@ export function portalPosts(clientId: string, share: string) {
   }));
 }
 
-export type EventDTO = Pick<TeamEvent, "id" | "clientId" | "type" | "title" | "date" | "time" | "notes">;
+export type EventDTO = Pick<TeamEvent, "id" | "clientId" | "type" | "title" | "date" | "time" | "notes"> & { people: string[] };
 
 /** Agenda interna: de todos los clientes, o de uno (más los eventos generales sin cliente). */
 export function eventsInRange(workspaceId: string, from: string, to: string, clientId: string | null): EventDTO[] {
@@ -169,6 +170,7 @@ export function eventsInRange(workspaceId: string, from: string, to: string, cli
       date: schema.events.date,
       time: schema.events.time,
       notes: schema.events.notes,
+      people: schema.events.people,
     })
     .from(schema.events)
     .where(
@@ -180,5 +182,59 @@ export function eventsInRange(workspaceId: string, from: string, to: string, cli
       ),
     )
     .orderBy(asc(schema.events.date), asc(sql`coalesce(${schema.events.time}, '00:00')`))
+    .all()
+    .map((e) => ({ ...e, people: e.people ?? [] }));
+}
+
+export type MemberDTO = { id: string; name: string; role: string; color: string; email: string; phone: string; isOwner: boolean };
+
+export function teamList(workspaceId: string): MemberDTO[] {
+  return db
+    .select()
+    .from(schema.team)
+    .where(eq(schema.team.workspaceId, workspaceId))
+    .orderBy(asc(schema.team.createdAt))
+    .all()
+    .map((m) => ({ id: m.id, name: m.name, role: m.role, color: m.color, email: m.email, phone: m.phone, isOwner: !!m.userId }));
+}
+
+export type AgendaDTO = {
+  tasks: { id: string; title: string; status: string; priority: string; dueDate: string | null; clientId: string; assigneeId: string | null }[];
+  posts: { id: string; title: string; date: string; time: string | null; format: string; status: string; clientId: string; assigneeId: string | null }[];
+  events: (EventDTO & { people: string[] })[];
+};
+
+/** Lo pendiente de todo el equipo, en todos los clientes: tareas sin terminar, piezas y eventos desde hoy. */
+export function teamAgenda(workspaceId: string, today: string): AgendaDTO {
+  const tasks = db
+    .select({
+      id: schema.tasks.id,
+      title: schema.tasks.title,
+      status: schema.tasks.status,
+      priority: schema.tasks.priority,
+      dueDate: schema.tasks.dueDate,
+      clientId: schema.tasks.clientId,
+      assigneeId: schema.tasks.assigneeId,
+    })
+    .from(schema.tasks)
+    .where(and(eq(schema.tasks.workspaceId, workspaceId), ne(schema.tasks.status, "done")))
+    .orderBy(asc(sql`coalesce(${schema.tasks.dueDate}, '9999')`))
     .all();
+  const posts = db
+    .select({
+      id: schema.posts.id,
+      title: schema.posts.title,
+      date: schema.posts.date,
+      time: schema.posts.time,
+      format: schema.posts.format,
+      status: schema.posts.status,
+      clientId: schema.posts.clientId,
+      assigneeId: schema.posts.assigneeId,
+    })
+    .from(schema.posts)
+    .where(and(eq(schema.posts.workspaceId, workspaceId), gte(schema.posts.date, today), ne(schema.posts.status, "published")))
+    .orderBy(asc(schema.posts.date))
+    .all();
+  const events = eventsInRange(workspaceId, today, "9999-12-31", null);
+  return { tasks, posts, events };
 }

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getContext, requireClient } from "@/lib/auth";
-import { getPostFull } from "@/lib/queries";
+import { getPostFull, teamList } from "@/lib/queries";
 import { todayIn } from "@/lib/dates";
 import { PostEditor } from "./post-editor";
 
@@ -19,6 +19,7 @@ export default async function PostPage(props: PageProps<"/posts/[id]">) {
         key="nuevo"
         client={client}
         clients={clients}
+        team={teamList(workspace.id)}
         initial={{
           format: "post",
           networks: client.networks.includes("instagram") ? ["instagram"] : [client.networks[0]],
@@ -48,6 +49,7 @@ export default async function PostPage(props: PageProps<"/posts/[id]">) {
       id={full.post.id}
       client={client}
       clients={clients}
+      team={teamList(user.workspaceId)}
       initial={full.post}
       media={full.media}
       comments={full.comments}

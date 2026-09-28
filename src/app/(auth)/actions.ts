@@ -46,6 +46,9 @@ export async function register(_prev: AuthState, form: FormData): Promise<AuthSt
     tx.insert(schema.users)
       .values({ id: userId, workspaceId, name, email, passwordHash, color: SWATCHES[0], role: "owner", createdAt: now })
       .run();
+    tx.insert(schema.team)
+      .values({ id: userId, workspaceId, userId, name, role: "", color: SWATCHES[0], email, phone: "", createdAt: now })
+      .run();
   });
   await createSession(userId);
   redirect("/clientes?nuevo=1");

@@ -1,7 +1,8 @@
 // Páginas de la versión PHP: piden los datos a la API y renderizan las mismas vistas que la versión Next.
 import { useEffect, useState } from "react";
 import type { Client, Comment, Network, Task } from "@/lib/db/schema";
-import type { EventDTO, MediaDTO, PostCardDTO } from "@/lib/queries";
+import type { AgendaDTO, EventDTO, MediaDTO, MemberDTO, PostCardDTO } from "@/lib/queries";
+import { TeamView } from "@/app/(app)/equipo/team-view";
 import { monthGrid, monthKey } from "@/lib/dates";
 import { shapeMetrics, monthsBack, type RawMetric, type RawPublished } from "@/lib/metrics-shape";
 import { AppShell } from "@/components/shell/app-shell";
@@ -51,7 +52,7 @@ export function CalendarPage() {
   const day = isDay(search.get("dia")) ? search.get("dia") : null;
   const weeks = monthGrid(month);
   const { data, error } = useData(`cal:${month}:${view}:${all ? "todos" : ""}`, () =>
-    rpc<{ clientId: string; posts: PostCardDTO[]; feed: PostCardDTO[]; events: EventDTO[] }>("calendarData", [
+    rpc<{ clientId: string; posts: PostCardDTO[]; feed: PostCardDTO[]; events: EventDTO[]; team: MemberDTO[] }>("calendarData", [
       weeks[0][0],
       weeks.at(-1)![6],
       view === "feed",
@@ -66,6 +67,7 @@ export function CalendarPage() {
       key={all ? "todos" : data.clientId}
       all={all}
       events={data.events}
+      team={data.team}
       activeClientId={c.id}
       clients={shell.clients.map((x) => ({ id: x.id, name: x.name, handle: x.handle, color: x.color, avatarId: x.avatarId }))}
       month={month}
@@ -88,6 +90,7 @@ type PostPayload = {
   notFound?: boolean;
   client: Client;
   clients: Client[];
+  team: MemberDTO[];
   initial: React.ComponentProps<typeof PostEditor>["initial"];
   media: MediaDTO[];
   comments: Comment[];
@@ -101,7 +104,7 @@ export function PostPage({ id }: { id: string }) {
   if (error && !data) return <LoadError message={error} />;
   if (!data) return <Loading />;
   if (data.notFound) return <NotFound />;
-  return <PostEditor key={data.id ?? "nuevo"} id={data.id} client={data.client} clients={data.clients} initial={data.initial} media={data.media} comments={data.comments} />;
+  return <PostEditor key={data.id ?? "nuevo"} id={data.id} client={data.client} clients={data.clients} team={data.team} initial={data.initial} media={data.media} comments={data.comments} />;
 }
 
 /* ---------------- Tareas ---------------- */
@@ -182,6 +185,18 @@ export function ReportPage() {
       data={shapeMetrics(month, data.client.networks, data.rows, data.published)}
     />
   );
+}
+
+/* ---------------- Mi equipo ---------------- */
+
+export function TeamPage() {
+  useTitle("Mi equipo");
+  const { data, error } = useData("team", () =>
+    rpc<{ today: string; members: MemberDTO[]; agenda: AgendaDTO; clients: React.ComponentProps<typeof TeamView>["clients"] }>("teamPage"),
+  );
+  if (error && !data) return <LoadError message={error} />;
+  if (!data) return <Loading />;
+  return <TeamView today={data.today} members={data.members} agenda={data.agenda} clients={data.clients} />;
 }
 
 /* ---------------- Clientes ---------------- */

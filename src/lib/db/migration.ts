@@ -123,4 +123,29 @@ CREATE TABLE IF NOT EXISTS events (
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS events_ws_date ON events(workspace_id, date);
+CREATE TABLE IF NOT EXISTS team (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  user_id TEXT,
+  name TEXT NOT NULL,
+  role TEXT NOT NULL,
+  color TEXT NOT NULL,
+  email TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS team_ws ON team(workspace_id);
+`;
+
+/** Cambios sobre tablas existentes (se ignoran si ya estaban aplicados). */
+export const ALTERS = [
+  "ALTER TABLE posts ADD COLUMN assignee_id TEXT",
+  "ALTER TABLE events ADD COLUMN people TEXT",
+];
+
+/** Cada usuario figura en el equipo con su mismo id (así las tareas ya asignadas siguen apuntando bien). */
+export const TEAM_BACKFILL = `
+INSERT INTO team (id, workspace_id, user_id, name, role, color, email, phone, created_at)
+SELECT u.id, u.workspace_id, u.id, u.name, '', u.color, u.email, '', u.created_at
+FROM users u WHERE NOT EXISTS (SELECT 1 FROM team t WHERE t.id = u.id);
 `;

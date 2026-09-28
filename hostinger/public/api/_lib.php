@@ -59,37 +59,50 @@ function db(): PDO
 
 function migrate(PDO $pdo): void
 {
-    // v2: colores de la marca (el avatar de la cuenta pasa del naranja viejo al verde).
-    $flag2 = DATA_DIR . '/.schema-v2';
-    if (is_file(DATA_DIR . '/.schema-v1') && !is_file($flag2)) {
-        $pdo->exec("UPDATE g_users SET color = '#7E8C69' WHERE color = '#FF5B2E'");
-        @file_put_contents($flag2, (string)time());
-    }
-    // v3: agenda interna del equipo (rodajes, reuniones, entregas).
-    $flag3 = DATA_DIR . '/.schema-v3';
-    if (!is_file($flag3)) {
-        $pdo->exec("CREATE TABLE IF NOT EXISTS g_events (id VARCHAR(32) PRIMARY KEY, workspace_id VARCHAR(32) NOT NULL, client_id VARCHAR(32) NULL, type VARCHAR(16) NOT NULL, title VARCHAR(160) NOT NULL, `date` CHAR(10) NOT NULL, `time` CHAR(5) NULL, notes TEXT NOT NULL, created_by VARCHAR(32) NOT NULL, created_at BIGINT NOT NULL, KEY (workspace_id, `date`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-        ensure_data_dir();
-        @file_put_contents($flag3, (string)time());
-    }
-    $flag = DATA_DIR . '/.schema-v1';
-    if (is_file($flag)) return;
+    // Cada versión se aplica una sola vez y en orden; la marca queda en data/.
     $t = 'ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci';
-    $sql = [
-        "CREATE TABLE IF NOT EXISTS g_workspaces (id VARCHAR(32) PRIMARY KEY, name VARCHAR(200) NOT NULL, timezone VARCHAR(64) NOT NULL, created_at BIGINT NOT NULL) $t",
-        "CREATE TABLE IF NOT EXISTS g_users (id VARCHAR(32) PRIMARY KEY, workspace_id VARCHAR(32) NOT NULL, name VARCHAR(120) NOT NULL, email VARCHAR(191) NOT NULL UNIQUE, password_hash VARCHAR(255) NOT NULL, color VARCHAR(16) NOT NULL, role VARCHAR(16) NOT NULL, created_at BIGINT NOT NULL, KEY (workspace_id)) $t",
-        "CREATE TABLE IF NOT EXISTS g_sessions (id CHAR(43) PRIMARY KEY, user_id VARCHAR(32) NOT NULL, expires_at BIGINT NOT NULL, KEY (user_id)) $t",
-        "CREATE TABLE IF NOT EXISTS g_clients (id VARCHAR(32) PRIMARY KEY, workspace_id VARCHAR(32) NOT NULL, name VARCHAR(160) NOT NULL, handle VARCHAR(80) NOT NULL, color VARCHAR(16) NOT NULL, avatar_id VARCHAR(40) NULL, networks TEXT NOT NULL, share_token VARCHAR(40) NOT NULL UNIQUE, position INT NOT NULL, archived_at BIGINT NULL, created_at BIGINT NOT NULL, KEY (workspace_id)) $t",
-        "CREATE TABLE IF NOT EXISTS g_posts (id VARCHAR(32) PRIMARY KEY, workspace_id VARCHAR(32) NOT NULL, client_id VARCHAR(32) NOT NULL, title VARCHAR(300) NOT NULL, caption TEXT NOT NULL, format VARCHAR(16) NOT NULL, networks TEXT NOT NULL, `date` CHAR(10) NOT NULL, `time` CHAR(5) NULL, status VARCHAR(16) NOT NULL, notes TEXT NOT NULL, post_metrics TEXT NULL, created_by VARCHAR(32) NOT NULL, created_at BIGINT NOT NULL, updated_at BIGINT NOT NULL, KEY (client_id, `date`)) $t",
-        "CREATE TABLE IF NOT EXISTS g_media (id VARCHAR(40) PRIMARY KEY, workspace_id VARCHAR(32) NOT NULL, post_id VARCHAR(32) NULL, kind VARCHAR(8) NOT NULL, mime VARCHAR(100) NOT NULL, filename VARCHAR(255) NOT NULL, size BIGINT NOT NULL, width INT NULL, height INT NULL, duration DOUBLE NULL, poster_id VARCHAR(40) NULL, position INT NOT NULL, status VARCHAR(16) NOT NULL, created_by VARCHAR(32) NOT NULL, created_at BIGINT NOT NULL, KEY (post_id), KEY (workspace_id)) $t",
-        "CREATE TABLE IF NOT EXISTS g_comments (id VARCHAR(32) PRIMARY KEY, post_id VARCHAR(32) NOT NULL, author_kind VARCHAR(8) NOT NULL, author_name VARCHAR(80) NOT NULL, user_id VARCHAR(32) NULL, kind VARCHAR(16) NOT NULL, body TEXT NOT NULL, created_at BIGINT NOT NULL, KEY (post_id)) $t",
-        "CREATE TABLE IF NOT EXISTS g_tasks (id VARCHAR(32) PRIMARY KEY, workspace_id VARCHAR(32) NOT NULL, client_id VARCHAR(32) NOT NULL, title VARCHAR(200) NOT NULL, description TEXT NOT NULL, status VARCHAR(16) NOT NULL, priority VARCHAR(8) NOT NULL, due_date CHAR(10) NULL, assignee_id VARCHAR(32) NULL, post_id VARCHAR(32) NULL, position DOUBLE NOT NULL, created_at BIGINT NOT NULL, updated_at BIGINT NOT NULL, KEY (client_id)) $t",
-        "CREATE TABLE IF NOT EXISTS g_metrics (id VARCHAR(32) PRIMARY KEY, client_id VARCHAR(32) NOT NULL, network VARCHAR(16) NOT NULL, month CHAR(7) NOT NULL, followers BIGINT NOT NULL, reach BIGINT NOT NULL, impressions BIGINT NOT NULL, interactions BIGINT NOT NULL, profile_visits BIGINT NOT NULL, UNIQUE KEY metrics_unique (client_id, network, month)) $t",
+    $steps = [
+        // v1: tablas base
+        1 => [
+            "CREATE TABLE IF NOT EXISTS g_workspaces (id VARCHAR(32) PRIMARY KEY, name VARCHAR(200) NOT NULL, timezone VARCHAR(64) NOT NULL, created_at BIGINT NOT NULL) $t",
+            "CREATE TABLE IF NOT EXISTS g_users (id VARCHAR(32) PRIMARY KEY, workspace_id VARCHAR(32) NOT NULL, name VARCHAR(120) NOT NULL, email VARCHAR(191) NOT NULL UNIQUE, password_hash VARCHAR(255) NOT NULL, color VARCHAR(16) NOT NULL, role VARCHAR(16) NOT NULL, created_at BIGINT NOT NULL, KEY (workspace_id)) $t",
+            "CREATE TABLE IF NOT EXISTS g_sessions (id CHAR(43) PRIMARY KEY, user_id VARCHAR(32) NOT NULL, expires_at BIGINT NOT NULL, KEY (user_id)) $t",
+            "CREATE TABLE IF NOT EXISTS g_clients (id VARCHAR(32) PRIMARY KEY, workspace_id VARCHAR(32) NOT NULL, name VARCHAR(160) NOT NULL, handle VARCHAR(80) NOT NULL, color VARCHAR(16) NOT NULL, avatar_id VARCHAR(40) NULL, networks TEXT NOT NULL, share_token VARCHAR(40) NOT NULL UNIQUE, position INT NOT NULL, archived_at BIGINT NULL, created_at BIGINT NOT NULL, KEY (workspace_id)) $t",
+            "CREATE TABLE IF NOT EXISTS g_posts (id VARCHAR(32) PRIMARY KEY, workspace_id VARCHAR(32) NOT NULL, client_id VARCHAR(32) NOT NULL, title VARCHAR(300) NOT NULL, caption TEXT NOT NULL, format VARCHAR(16) NOT NULL, networks TEXT NOT NULL, `date` CHAR(10) NOT NULL, `time` CHAR(5) NULL, status VARCHAR(16) NOT NULL, notes TEXT NOT NULL, post_metrics TEXT NULL, created_by VARCHAR(32) NOT NULL, created_at BIGINT NOT NULL, updated_at BIGINT NOT NULL, KEY (client_id, `date`)) $t",
+            "CREATE TABLE IF NOT EXISTS g_media (id VARCHAR(40) PRIMARY KEY, workspace_id VARCHAR(32) NOT NULL, post_id VARCHAR(32) NULL, kind VARCHAR(8) NOT NULL, mime VARCHAR(100) NOT NULL, filename VARCHAR(255) NOT NULL, size BIGINT NOT NULL, width INT NULL, height INT NULL, duration DOUBLE NULL, poster_id VARCHAR(40) NULL, position INT NOT NULL, status VARCHAR(16) NOT NULL, created_by VARCHAR(32) NOT NULL, created_at BIGINT NOT NULL, KEY (post_id), KEY (workspace_id)) $t",
+            "CREATE TABLE IF NOT EXISTS g_comments (id VARCHAR(32) PRIMARY KEY, post_id VARCHAR(32) NOT NULL, author_kind VARCHAR(8) NOT NULL, author_name VARCHAR(80) NOT NULL, user_id VARCHAR(32) NULL, kind VARCHAR(16) NOT NULL, body TEXT NOT NULL, created_at BIGINT NOT NULL, KEY (post_id)) $t",
+            "CREATE TABLE IF NOT EXISTS g_tasks (id VARCHAR(32) PRIMARY KEY, workspace_id VARCHAR(32) NOT NULL, client_id VARCHAR(32) NOT NULL, title VARCHAR(200) NOT NULL, description TEXT NOT NULL, status VARCHAR(16) NOT NULL, priority VARCHAR(8) NOT NULL, due_date CHAR(10) NULL, assignee_id VARCHAR(32) NULL, post_id VARCHAR(32) NULL, position DOUBLE NOT NULL, created_at BIGINT NOT NULL, updated_at BIGINT NOT NULL, KEY (client_id)) $t",
+            "CREATE TABLE IF NOT EXISTS g_metrics (id VARCHAR(32) PRIMARY KEY, client_id VARCHAR(32) NOT NULL, network VARCHAR(16) NOT NULL, month CHAR(7) NOT NULL, followers BIGINT NOT NULL, reach BIGINT NOT NULL, impressions BIGINT NOT NULL, interactions BIGINT NOT NULL, profile_visits BIGINT NOT NULL, UNIQUE KEY metrics_unique (client_id, network, month)) $t",
+        ],
+        // v2: colores de la marca (el avatar de la cuenta pasa del naranja viejo al verde)
+        2 => ["UPDATE g_users SET color = '#7E8C69' WHERE color = '#FF5B2E'"],
+        // v3: agenda interna del equipo
+        3 => ["CREATE TABLE IF NOT EXISTS g_events (id VARCHAR(32) PRIMARY KEY, workspace_id VARCHAR(32) NOT NULL, client_id VARCHAR(32) NULL, type VARCHAR(16) NOT NULL, title VARCHAR(160) NOT NULL, `date` CHAR(10) NOT NULL, `time` CHAR(5) NULL, notes TEXT NOT NULL, created_by VARCHAR(32) NOT NULL, created_at BIGINT NOT NULL, KEY (workspace_id, `date`)) $t"],
+        // v4: mi equipo (personas sin cuenta), responsable de piezas y participantes de eventos
+        4 => [
+            "CREATE TABLE IF NOT EXISTS g_team (id VARCHAR(32) PRIMARY KEY, workspace_id VARCHAR(32) NOT NULL, user_id VARCHAR(32) NULL, name VARCHAR(80) NOT NULL, role VARCHAR(60) NOT NULL, color VARCHAR(16) NOT NULL, email VARCHAR(120) NOT NULL, phone VARCHAR(40) NOT NULL, created_at BIGINT NOT NULL, KEY (workspace_id)) $t",
+            "ALTER TABLE g_posts ADD COLUMN assignee_id VARCHAR(32) NULL",
+            "ALTER TABLE g_events ADD COLUMN people TEXT NULL",
+            "INSERT IGNORE INTO g_team (id, workspace_id, user_id, name, role, color, email, phone, created_at) SELECT id, workspace_id, id, name, '', color, email, '', created_at FROM g_users",
+        ],
     ];
-    foreach ($sql as $q) $pdo->exec($q);
+    $need = false;
+    foreach (array_keys($steps) as $v) if (!is_file(DATA_DIR . "/.schema-v$v")) $need = true;
+    if (!$need) return;
     ensure_data_dir();
-    @file_put_contents($flag, (string)time());
-    @file_put_contents(DATA_DIR . '/.schema-v2', (string)time());
+    foreach ($steps as $v => $sqls) {
+        $flag = DATA_DIR . "/.schema-v$v";
+        if (is_file($flag)) continue;
+        foreach ($sqls as $sql) {
+            try {
+                $pdo->exec($sql);
+            } catch (PDOException $e) {
+                // Columna o tabla que ya existía: seguimos.
+                if (!in_array((int)($e->errorInfo[1] ?? 0), [1050, 1060, 1061], true)) throw $e;
+            }
+        }
+        @file_put_contents($flag, (string)time());
+    }
 }
 
 function ensure_data_dir(): void
@@ -288,6 +301,7 @@ function dto_post(array $p): array
         'status' => $p['status'],
         'notes' => $p['notes'],
         'postMetrics' => $p['post_metrics'] ? json_decode($p['post_metrics'], true) : null,
+        'assigneeId' => $p['assignee_id'] ?? null,
         'createdBy' => $p['created_by'],
         'createdAt' => (int)$p['created_at'],
         'updatedAt' => (int)$p['updated_at'],
@@ -324,6 +338,23 @@ function dto_task(array $t): array
         'position' => (float)$t['position'],
         'createdAt' => (int)$t['created_at'],
         'updatedAt' => (int)$t['updated_at'],
+    ];
+}
+
+function team_list(string $workspaceId): array
+{
+    return array_map(fn($m) => [
+        'id' => $m['id'], 'name' => $m['name'], 'role' => $m['role'], 'color' => $m['color'],
+        'email' => $m['email'], 'phone' => $m['phone'], 'isOwner' => $m['user_id'] !== null,
+    ], all('SELECT * FROM g_team WHERE workspace_id = ? ORDER BY created_at', [$workspaceId]));
+}
+
+function dto_event(array $e): array
+{
+    return [
+        'id' => $e['id'], 'clientId' => $e['client_id'], 'type' => $e['type'], 'title' => $e['title'],
+        'date' => $e['date'], 'time' => $e['time'], 'notes' => $e['notes'],
+        'people' => $e['people'] ? (json_decode($e['people'], true) ?: []) : [],
     ];
 }
 

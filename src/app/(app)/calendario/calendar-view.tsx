@@ -15,6 +15,8 @@ import { ClientAvatar } from "@/components/ui/avatar";
 import { movePost } from "../actions/posts";
 import { switchClient } from "../actions/clients";
 import { EventIcon, EventSheet } from "@/components/calendar/event-sheet";
+import { AvatarStack, type Person } from "@/components/team/people-picker";
+import { PersonAvatar } from "@/components/ui/avatar";
 import { useToast } from "@/components/ui/toast";
 import { shareLink } from "@/lib/share";
 import { absUrl } from "@/lib/base";
@@ -22,7 +24,12 @@ import { absUrl } from "@/lib/base";
 type View = "mes" | "lista" | "feed";
 type ClientInfo = { name: string; handle: string; color: string; avatarId: string | null };
 type ClientChip = ClientInfo & { id: string };
-type Ctx = { all: boolean; clientsById: Map<string, ClientChip>; onEvent: (e: EventDTO | null, date: string) => void };
+type Ctx = {
+  all: boolean;
+  clientsById: Map<string, ClientChip>;
+  peopleById: Map<string, Person>;
+  onEvent: (e: EventDTO | null, date: string) => void;
+};
 
 export function CalendarView({
   month,
@@ -38,7 +45,9 @@ export function CalendarView({
   all = false,
   clients = [],
   activeClientId,
+  team = [],
 }: {
+  team?: Person[];
   shareToken?: string;
   events?: EventDTO[];
   /** Vista con todos los clientes juntos. */
@@ -59,7 +68,8 @@ export function CalendarView({
   const [switching, startSwitch] = useTransition();
   const [eventSheet, setEventSheet] = useState<{ event: EventDTO | null; date: string } | null>(null);
   const clientsById = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);
-  const ctx: Ctx = { all, clientsById, onEvent: (event, date) => setEventSheet({ event, date }) };
+  const peopleById = useMemo(() => new Map(team.map((p) => [p.id, p])), [team]);
+  const ctx: Ctx = { all, clientsById, peopleById, onEvent: (event, date) => setEventSheet({ event, date }) };
   const [posts, setPosts] = useState(initialPosts);
   useEffect(() => setPosts(initialPosts), [initialPosts]);
 
@@ -203,6 +213,7 @@ export function CalendarView({
         date={eventSheet?.date ?? selected}
         clients={clients}
         defaultClientId={all ? null : (activeClientId ?? null)}
+        team={team}
       />
     </div>
   );
@@ -483,8 +494,11 @@ function EventRow({ event: e, ctx }: { event: EventDTO; ctx: Ctx }) {
           {c && <span className="truncate">· {c.handle}</span>}
         </span>
       </span>
-      <span className="flex shrink-0 items-center gap-1 rounded-full bg-surface px-2 py-0.5 text-[11px] font-semibold text-muted">
-        <Lock className="size-3" /> Equipo
+      <span className="flex shrink-0 flex-col items-end gap-1.5">
+        <span className="flex items-center gap-1 rounded-full bg-surface px-2 py-0.5 text-[11px] font-semibold text-muted">
+          <Lock className="size-3" /> Equipo
+        </span>
+        <AvatarStack people={e.people.map((id) => ctx.peopleById.get(id)).filter((p): p is Person => !!p)} size={20} />
       </span>
     </button>
   );
@@ -492,6 +506,7 @@ function EventRow({ event: e, ctx }: { event: EventDTO; ctx: Ctx }) {
 
 function PostRow({ post: p, ctx }: { post: PostCardDTO; ctx?: Ctx }) {
   const c = ctx?.all ? ctx.clientsById.get(p.clientId) : undefined;
+  const owner = p.assigneeId ? ctx?.peopleById.get(p.assigneeId) : undefined;
   return (
     <Link href={`/posts/${p.id}`} className="card flex gap-3 p-2.5 transition-colors hover:border-line-strong active:bg-sunken/50">
       <Thumb media={p.thumb} format={p.format} className="h-[76px] w-[61px] shrink-0" rounded="rounded-[10px]" />
@@ -502,7 +517,14 @@ function PostRow({ post: p, ctx }: { post: PostCardDTO; ctx?: Ctx }) {
               <ClientAvatar client={c} size={16} /> {c.handle}
             </p>
           )}
-          <p className="line-clamp-2 text-[15px] font-semibold leading-snug">{p.title}</p>
+          <div className="flex items-start justify-between gap-2">
+            <p className="line-clamp-2 text-[15px] font-semibold leading-snug">{p.title}</p>
+            {owner && (
+              <span title={`A cargo de ${owner.name}`} className="shrink-0">
+                <PersonAvatar name={owner.name} color={owner.color} size={22} />
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
           <StatusPill status={p.status} />

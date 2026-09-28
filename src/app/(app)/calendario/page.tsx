@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { requireClient } from "@/lib/auth";
-import { eventsInRange, feedPosts, postsInRange } from "@/lib/queries";
+import { eventsInRange, feedPosts, postsInRange, teamList } from "@/lib/queries";
 import { monthGrid, monthKey, todayIn } from "@/lib/dates";
 import { CalendarView } from "./calendar-view";
 
@@ -40,6 +40,7 @@ export default async function CalendarPage(props: PageProps<"/calendario">) {
       clients={clients.map((c) => ({ id: c.id, name: c.name, handle: c.handle, color: c.color, avatarId: c.avatarId }))}
       client={{ name: client.name, handle: client.handle, color: client.color, avatarId: client.avatarId }}
       shareToken={client.shareToken}
+      team={teamList(workspace.id)}
     />
   );
 }

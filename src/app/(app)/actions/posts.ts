@@ -22,6 +22,7 @@ export type PostInput = {
   status: PostStatus;
   notes: string;
   mediaIds: string[];
+  assigneeId?: string | null;
 };
 
 function ownPost(workspaceId: string, id: string) {
@@ -47,6 +48,15 @@ export async function savePost(input: PostInput): Promise<{ id: string } | { err
 
   const now = Date.now();
   const title = input.title.trim() || "Sin título";
+  const assigneeId =
+    input.assigneeId &&
+    db
+      .select({ id: schema.team.id })
+      .from(schema.team)
+      .where(and(eq(schema.team.id, input.assigneeId), eq(schema.team.workspaceId, user.workspaceId)))
+      .get()
+      ? input.assigneeId
+      : null;
   let id = input.id;
   let prevStatus: PostStatus | null = null;
 
@@ -84,6 +94,7 @@ export async function savePost(input: PostInput): Promise<{ id: string } | { err
           time: input.time || null,
           status: input.status,
           notes: input.notes,
+          assigneeId,
           updatedAt: now,
         })
         .where(eq(schema.posts.id, id))
@@ -107,6 +118,7 @@ export async function savePost(input: PostInput): Promise<{ id: string } | { err
           status: input.status,
           notes: input.notes,
           postMetrics: null,
+          assigneeId,
           createdBy: user.id,
           createdAt: now,
           updatedAt: now,

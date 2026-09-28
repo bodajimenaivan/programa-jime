@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, ChartNoAxesColumn, LogOut, Plus, SquareKanban, Users } from "lucide-react";
+import { CalendarDays, ChartNoAxesColumn, LogOut, Plus, SquareKanban, Users, UsersRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
 import { PersonAvatar } from "@/components/ui/avatar";
@@ -52,7 +52,7 @@ export function AppShell({
             <Plus className="size-[18px]" strokeWidth={2.5} /> Nueva pieza
           </Link>
           <nav className="mt-6 space-y-0.5">
-            {NAV.map(({ href, label, icon: Icon }) => (
+            {[...NAV, { href: "/equipo", label: "Mi equipo", icon: UsersRound }].map(({ href, label, icon: Icon }) => (
               <Link
                 key={href}
                 href={href}

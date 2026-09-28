@@ -10,6 +10,7 @@ import { Sheet } from "@/components/ui/sheet";
 import { ClientAvatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { deleteEvent, saveEvent } from "@/app/(app)/actions/events";
+import { PeoplePicker, type Person } from "@/components/team/people-picker";
 
 export type EventClient = { id: string; name: string; handle: string; color: string; avatarId: string | null };
 
@@ -29,7 +30,9 @@ export function EventSheet({
   date,
   clients,
   defaultClientId,
+  team = [],
 }: {
+  team?: Person[];
   open: boolean;
   onClose: () => void;
   initial: EventDTO | null;
@@ -44,6 +47,7 @@ export function EventSheet({
   const [time, setTime] = useState("");
   const [clientId, setClientId] = useState<string | null>(defaultClientId);
   const [notes, setNotes] = useState("");
+  const [people, setPeople] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -55,12 +59,13 @@ export function EventSheet({
     setTime(initial?.time ?? "");
     setClientId(initial ? initial.clientId : defaultClientId);
     setNotes(initial?.notes ?? "");
+    setPeople(initial?.people ?? []);
     setError(null);
   }, [open, initial, date, defaultClientId]);
 
   const save = () =>
     start(async () => {
-      const res = await saveEvent({ id: initial?.id, type, title, date: day, time: time || null, clientId, notes });
+      const res = await saveEvent({ id: initial?.id, type, title, date: day, time: time || null, clientId, notes, people });
       if ("error" in res) return setError(res.error);
       router.refresh();
       onClose();
@@ -136,6 +141,12 @@ export function EventSheet({
             <input id="ev-time" type="time" className="field" value={time} onChange={(e) => setTime(e.target.value)} />
           </div>
         </div>
+        {team.length > 0 && (
+          <div>
+            <p className="label">{type === "meeting" ? "Con quién" : "Quiénes van"}</p>
+            <PeoplePicker people={team} value={people} onChange={setPeople} multiple />
+          </div>
+        )}
         <div>
           <p className="label">Cliente</p>
           <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5">

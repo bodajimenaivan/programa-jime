@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { LogOut } from "lucide-react";
+import Link from "next/link";
+import { ChevronRight, LogOut, UsersRound } from "lucide-react";
 import { PersonAvatar } from "@/components/ui/avatar";
 import { Sheet } from "@/components/ui/sheet";
 import { logout } from "@/app/(auth)/actions";
@@ -22,6 +23,20 @@ export function UserMenu({ user, workspaceName }: { user: { name: string; email:
             <p className="truncate text-[13px] text-muted">{workspaceName}</p>
           </div>
         </div>
+        <Link
+          href="/equipo"
+          onClick={() => setOpen(false)}
+          className="mt-3 flex items-center gap-3 rounded-2xl border border-line bg-surface p-3 text-[15px] font-semibold hover:border-line-strong"
+        >
+          <span className="grid size-10 place-items-center rounded-xl bg-sunken">
+            <UsersRound className="size-5" />
+          </span>
+          <span className="flex-1">
+            Mi equipo
+            <span className="block text-[12.5px] font-normal text-muted">Personas, roles y qué le toca a cada una</span>
+          </span>
+          <ChevronRight className="size-4 text-muted" />
+        </Link>
         <form action={logout} className="mt-4">
           <button className="btn-ghost w-full">
             <LogOut className="size-4" /> Cerrar sesión

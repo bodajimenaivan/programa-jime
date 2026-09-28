@@ -57,6 +57,8 @@ export const posts = sqliteTable(
     status: text("status", { enum: STATUSES() }).notNull(),
     notes: text("notes").notNull(),
     postMetrics: text("post_metrics", { mode: "json" }).$type<PostMetrics | null>(),
+    /** Persona del equipo a cargo de la pieza. */
+    assigneeId: text("assignee_id"),
     createdBy: text("created_by").notNull(),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
@@ -149,10 +151,29 @@ export const events = sqliteTable(
     date: text("date").notNull(),
     time: text("time"),
     notes: text("notes").notNull(),
+    /** Personas del equipo que participan (ids de team). */
+    people: text("people", { mode: "json" }).$type<string[]>(),
     createdBy: text("created_by").notNull(),
     createdAt: integer("created_at").notNull(),
   },
   (t) => [index("events_ws_date").on(t.workspaceId, t.date)],
+);
+
+/** Personas del equipo (no necesitan cuenta). La dueña de la cuenta también figura acá, con el mismo id. */
+export const team = sqliteTable(
+  "team",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    userId: text("user_id"),
+    name: text("name").notNull(),
+    role: text("role").notNull(),
+    color: text("color").notNull(),
+    email: text("email").notNull(),
+    phone: text("phone").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [index("team_ws").on(t.workspaceId)],
 );
 
 // Los enums viven en funciones para que el orden de declaración no importe.
@@ -188,4 +209,5 @@ export type Comment = typeof comments.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
 export type Metric = typeof metrics.$inferSelect;
 export type TeamEvent = typeof events.$inferSelect;
+export type TeamMember = typeof team.$inferSelect;
 export type EventType = TeamEvent["type"];

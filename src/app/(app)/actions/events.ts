@@ -15,6 +15,7 @@ export type EventInput = {
   date: string;
   time: string | null;
   notes: string;
+  people?: string[];
 };
 
 export async function saveEvent(input: EventInput): Promise<{ id: string } | { error: string }> {
@@ -25,7 +26,10 @@ export async function saveEvent(input: EventInput): Promise<{ id: string } | { e
   if (input.time && !/^\d{2}:\d{2}$/.test(input.time)) return { error: "La hora no es válida." };
   if (!EVENT_ORDER.includes(input.type)) return { error: "Tipo inválido." };
   if (input.clientId) assertClientAccess(user.workspaceId, input.clientId);
+  const members = db.select({ id: schema.team.id }).from(schema.team).where(eq(schema.team.workspaceId, user.workspaceId)).all();
+  const people = (input.people ?? []).filter((p) => members.some((m) => m.id === p));
   const values = {
+    people,
     clientId: input.clientId || null,
     type: input.type,
     title,

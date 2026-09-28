@@ -3,6 +3,7 @@ import { asc, desc, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireClient } from "@/lib/auth";
 import { todayIn } from "@/lib/dates";
+import { teamList } from "@/lib/queries";
 import { Board } from "./board";
 
 export const metadata: Metadata = { title: "Tareas" };
@@ -15,11 +16,7 @@ export default async function TasksPage() {
     .where(eq(schema.tasks.clientId, client.id))
     .orderBy(asc(schema.tasks.position))
     .all();
-  const people = db
-    .select({ id: schema.users.id, name: schema.users.name, color: schema.users.color })
-    .from(schema.users)
-    .where(eq(schema.users.workspaceId, user.workspaceId))
-    .all();
+  const people = teamList(user.workspaceId).map((m) => ({ id: m.id, name: m.name, color: m.color }));
   const posts = db
     .select({ id: schema.posts.id, title: schema.posts.title, date: schema.posts.date })
     .from(schema.posts)

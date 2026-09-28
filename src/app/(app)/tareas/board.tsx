@@ -18,7 +18,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { AlignLeft, CalendarClock, Flag, Link2, Plus, Trash2 } from "lucide-react";
+import { AlignLeft, CalendarClock, Flag, Link2, Plus, Trash2, UsersRound } from "lucide-react";
 import type { Task, TaskStatus } from "@/lib/db/schema";
 import { PRIORITY_LABEL, TASK_COLUMNS } from "@/lib/constants";
 import { addDays, formatDayShort } from "@/lib/dates";
@@ -128,7 +128,15 @@ export function Board({
   return (
     <div className="pb-8">
       <div className="mx-auto max-w-[1400px] px-5 lg:px-8">
-        <PageHeader title="Tareas" subtitle={`Lo que falta para que la grilla de ${clientName} salga a tiempo.`} />
+        <PageHeader
+          title="Tareas"
+          subtitle={`Lo que falta para que la grilla de ${clientName} salga a tiempo.`}
+          action={
+            <Link href="/equipo" className="btn-ghost btn-sm">
+              <UsersRound className="size-4" /> Equipo
+            </Link>
+          }
+        />
         {/* Selector de columna (mobile) */}
         <div className="no-scrollbar -mx-5 mb-4 flex gap-2 overflow-x-auto px-5 lg:hidden">
           {TASK_COLUMNS.map((c) => (
