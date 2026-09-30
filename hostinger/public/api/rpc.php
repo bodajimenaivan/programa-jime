@@ -18,7 +18,7 @@ $API = [
     // shell y clientes
     'shell', 'switchClient', 'saveClient', 'archiveClient', 'resetShareLink', 'clientsPage',
     // calendario y piezas
-    'calendarData', 'saveEvent', 'deleteEvent', 'postPage', 'savePost', 'deletePost', 'movePost', 'setPostStatus', 'addTeamComment', 'savePostMetrics', 'duplicatePost',
+    'calendarData', 'saveEvent', 'deleteEvent', 'postPage', 'savePost', 'deletePost', 'movePost', 'setPostStatus', 'addTeamComment', 'savePostMetrics', 'duplicatePost', 'hashtagData',
     // tareas
     'teamPage', 'saveMember', 'deleteMember',
     'tasksPage', 'createTask', 'updateTask', 'deleteTask',
@@ -641,6 +641,20 @@ function api_deleteTask(string $id): bool
     return true;
 }
 
+/** Texto + resultados de una pieza: el front calcula qué hashtags rinden mejor. */
+function tag_source(array $p): array
+{
+    return ['caption' => (string)$p['caption'], 'date' => $p['date'], 'postMetrics' => $p['post_metrics'] ? json_decode($p['post_metrics'], true) : null];
+}
+
+function api_hashtagData(string $clientId): array
+{
+    $u = require_user();
+    client_access($u['workspace_id'], $clientId);
+    $rows = all('SELECT caption, `date`, post_metrics FROM g_posts WHERE client_id = ? ORDER BY `date` DESC LIMIT 300', [$clientId]);
+    return array_map('tag_source', $rows);
+}
+
 /* ======================= Métricas ======================= */
 
 /** Filas crudas: el front arma los totales y gráficos. */
@@ -654,6 +668,7 @@ function api_metricsData(string $fromMonth, string $toMonth): array
     $rows = all('SELECT network, month, followers, reach, impressions, interactions, profile_visits FROM g_metrics WHERE client_id = ? AND month BETWEEN ? AND ?', [$client['id'], $fromMonth, $toMonth]);
     $published = all("SELECT * FROM g_posts WHERE client_id = ? AND status = 'published' AND `date` BETWEEN ? AND ?", [$client['id'], "$toMonth-01", "$toMonth-31"]);
     $thumbs = media_by_post(array_column($published, 'id'));
+    $tagged = all('SELECT caption, `date`, post_metrics FROM g_posts WHERE client_id = ? AND `date` BETWEEN ? AND ?', [$client['id'], "$fromMonth-01", "$toMonth-31"]);
     return [
         'client' => dto_client($client),
         'workspaceName' => $ws['name'],
@@ -668,6 +683,7 @@ function api_metricsData(string $fromMonth, string $toMonth): array
             'postMetrics' => $p['post_metrics'] ? json_decode($p['post_metrics'], true) : null,
             'thumb' => isset($thumbs[$p['id']][0]) ? dto_media($thumbs[$p['id']][0]) : null,
         ], $published),
+        'tagSource' => array_map('tag_source', $tagged),
     ];
 }
 

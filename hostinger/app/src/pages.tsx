@@ -5,6 +5,7 @@ import type { AgendaDTO, EventDTO, MediaDTO, MemberDTO, PostCardDTO } from "@/li
 import { TeamView } from "@/app/(app)/equipo/team-view";
 import { monthGrid, monthKey } from "@/lib/dates";
 import { shapeMetrics, monthsBack, type RawMetric, type RawPublished } from "@/lib/metrics-shape";
+import { hashtagStats, type TagSource } from "@/lib/hashtags";
 import { AppShell } from "@/components/shell/app-shell";
 import { CalendarView } from "@/app/(app)/calendario/calendar-view";
 import { PostEditor } from "@/app/(app)/posts/[id]/post-editor";
@@ -134,6 +135,7 @@ type MetricsPayload = {
   today: string;
   rows: RawMetric[];
   published: RawPublished[];
+  tagSource?: TagSource[];
 };
 
 function useMetrics(month: string) {
@@ -165,6 +167,7 @@ export function MetricsPage() {
       red={red}
       data={shaped}
       formInitial={nets.map((n) => ({ network: n, ...single.byNetwork[n][0] }))}
+      hashtags={hashtagStats(data.tagSource ?? [])}
     />
   );
 }

@@ -15,6 +15,7 @@ import {
   Trophy,
   UtensilsCrossed,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -67,6 +68,7 @@ export function EmojiTextarea({
   className,
   placeholder,
   footer,
+  tools = [],
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -74,10 +76,13 @@ export function EmojiTextarea({
   className?: string;
   placeholder?: string;
   footer?: React.ReactNode;
+  /** Otros paneles que se abren desde la misma barra (de a uno por vez). */
+  tools?: { id: string; label: string; icon: LucideIcon; panel: React.ReactNode }[];
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const sel = useRef<[number, number]>([value.length, value.length]);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<string | null>(null);
+  const buttons = [{ id: "emojis", label: "Emojis", icon: SmilePlus as LucideIcon }, ...tools];
 
   const remember = () => {
     const el = ref.current;
@@ -118,30 +123,34 @@ export function EmojiTextarea({
         onClick={remember}
         onFocus={() => {
           // Si el panel está abierto en el celu, al tocar el texto vuelve el teclado (como en WhatsApp).
-          if (open && !window.matchMedia("(hover: hover) and (pointer: fine)").matches) setOpen(false);
+          if (open && !window.matchMedia("(hover: hover) and (pointer: fine)").matches) setOpen(null);
         }}
       />
-      <div className="mt-1.5 flex items-center justify-between gap-3">
-        <button
-          type="button"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => {
-            remember();
-            setOpen((o) => !o);
-          }}
-          aria-expanded={open}
-          aria-label={open ? "Cerrar emojis" : "Agregar emojis"}
-          className={cn(
-            "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold transition-colors",
-            open ? "border-inverse bg-inverse text-inverse-ink" : "border-line bg-surface text-ink hover:border-ink",
-          )}
-        >
-          {open ? <X className="size-4" /> : <SmilePlus className="size-4" />}
-          Emojis
-        </button>
-        {footer}
+      <div className="mt-1.5 flex flex-wrap items-center gap-2">
+        {buttons.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              remember();
+              setOpen((o) => (o === id ? null : id));
+            }}
+            aria-expanded={open === id}
+            aria-label={open === id ? `Cerrar ${label.toLowerCase()}` : `Agregar ${label.toLowerCase()}`}
+            className={cn(
+              "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold transition-colors",
+              open === id ? "border-inverse bg-inverse text-inverse-ink" : "border-line bg-surface text-ink hover:border-ink",
+            )}
+          >
+            {open === id ? <X className="size-4" /> : <Icon className="size-4" />}
+            {label}
+          </button>
+        ))}
+        {footer && <div className="ml-auto">{footer}</div>}
       </div>
-      {open && <EmojiPanel onPick={insert} />}
+      {open === "emojis" && <EmojiPanel onPick={insert} />}
+      {tools.map((t) => open === t.id && <div key={t.id}>{t.panel}</div>)}
     </div>
   );
 }

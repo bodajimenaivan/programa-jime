@@ -17,6 +17,7 @@ import { Sheet } from "@/components/ui/sheet";
 import { FormatTag, Thumb } from "@/components/post/bits";
 import { ColumnChart, LineChart, Sparkline } from "@/components/charts/charts";
 import { saveMonthMetrics, type MetricInput } from "../actions/metrics";
+import { bestTags, formatLift, formatRate, MIN_MEASURED, type TagStats } from "@/lib/hashtags";
 
 type Data = MetricsData;
 
@@ -29,6 +30,7 @@ export function MetricsView({
   red,
   data,
   formInitial,
+  hashtags,
 }: {
   clientId: string;
   clientName: string;
@@ -38,6 +40,7 @@ export function MetricsView({
   red: Network | null;
   data: Data;
   formInitial: (MonthRow & { network: Network })[];
+  hashtags?: TagStats;
 }) {
   const [loading, setLoading] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -189,6 +192,8 @@ export function MetricsView({
           </div>
         )}
       </section>
+
+      {hashtags && <HashtagCard stats={hashtags} />}
 
       <details className="card mt-5 p-4 lg:p-5">
         <summary className="cursor-pointer text-[14px] font-semibold">Ver todos los datos en tabla</summary>
@@ -391,5 +396,67 @@ function MonthForm({
         {pending ? "Guardando…" : "Guardar métricas"}
       </button>
     </div>
+  );
+}
+
+function HashtagCard({ stats }: { stats: TagStats }) {
+  const best = bestTags(stats, 8);
+  return (
+    <section className="card mt-5 overflow-hidden">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 p-4 lg:p-5">
+        <h2 className="font-semibold">Hashtags que mejor funcionan</h2>
+        <span className="text-[12.5px] text-muted">últimos 6 meses · contra el promedio de la cuenta</span>
+      </div>
+      {best.length ? (
+        <div className="overflow-x-auto">
+          <table className="w-full table-fixed text-[13.5px]">
+            <thead>
+              <tr className="border-y border-line text-left text-[12px] text-muted">
+                <th className="px-4 py-2 font-medium lg:px-5">Hashtag</th>
+                <th className="w-[56px] px-2 py-2 text-right font-medium sm:w-[120px]">
+                  Piezas<span className="hidden sm:inline"> medidas</span>
+                </th>
+                <th className="w-[86px] px-2 py-2 text-right font-medium sm:w-[120px]">Interacción</th>
+                <th className="w-[92px] px-4 py-2 text-right font-medium sm:w-[150px] lg:px-5">Rinde</th>
+              </tr>
+            </thead>
+            <tbody className="tabular-nums">
+              {best.map((t) => (
+                <tr key={t.tag} className="border-b border-line last:border-0">
+                  <td className="truncate px-4 py-2.5 font-semibold lg:px-5">{t.tag}</td>
+                  <td className="px-2 text-right">{t.measured}</td>
+                  <td className="px-2 text-right">{formatRate(t.rate ?? 0)}</td>
+                  <td className={cn("px-4 text-right font-semibold lg:px-5", t.lift! > 0 ? "text-st-approved" : "text-muted")}>
+                    {Math.round(t.lift! * 100) === 0 ? "= prom." : formatLift(t.lift!)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {stats.baseline !== null && (
+            <p className="border-t border-line px-4 py-3 text-[12.5px] text-muted lg:px-5">
+              Promedio de la cuenta: {formatRate(stats.baseline)} de interacción (me gusta, comentarios, guardados y compartidos sobre el alcance).
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="px-4 pb-5 lg:px-5">
+          <p className="text-[14px] text-muted">
+            {stats.tags.length
+              ? `Todavía no hay datos suficientes: hace falta que un hashtag esté en al menos ${MIN_MEASURED} piezas publicadas con resultados cargados.`
+              : "No hay hashtags en las piezas de estos meses."}
+          </p>
+          {stats.tags.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {stats.tags.slice(0, 12).map((t) => (
+                <span key={t.tag} className="rounded-full bg-sunken px-2.5 py-1 text-[13px]">
+                  {t.tag} <span className="text-muted tabular-nums">×{t.uses}</span>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </section>
   );
 }

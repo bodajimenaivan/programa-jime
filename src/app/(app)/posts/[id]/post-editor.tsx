@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, CopyPlus, Send, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, CopyPlus, Hash, Send, Trash2 } from "lucide-react";
 import type { Client, Comment, Network, PostFormat, PostMetrics, PostStatus } from "@/lib/db/schema";
 import type { MediaDTO } from "@/lib/queries";
 import { CAPTION_LIMIT, FORMAT_LABEL, FORMAT_ORDER, NETWORK_LABEL, NETWORK_ORDER, STATUS_LABEL, STATUS_ORDER } from "@/lib/constants";
@@ -19,6 +19,7 @@ import { CommentThread } from "@/components/post/comment-thread";
 import { useToast } from "@/components/ui/toast";
 import { CopyButton } from "@/components/ui/copy-button";
 import { EmojiTextarea } from "@/components/ui/emoji-textarea";
+import { HashtagPanel } from "@/components/post/hashtag-panel";
 import { PeoplePicker, type Person } from "@/components/team/people-picker";
 import { deletePost, duplicatePost, savePost, savePostMetrics } from "../../actions/posts";
 
@@ -259,6 +260,14 @@ export function PostEditor({
               maxLength={CAPTION_LIMIT}
               onChange={setCaption}
               placeholder="Escribí el texto que va a acompañar la publicación…"
+              tools={[
+                {
+                  id: "hashtags",
+                  label: "Hashtags",
+                  icon: Hash,
+                  panel: <HashtagPanel caption={caption} onChange={setCaption} maxLength={CAPTION_LIMIT} clientId={client.id} handle={client.handle} />,
+                },
+              ]}
               footer={
                 <p className="text-right text-[12px] tabular-nums text-muted">
                   {caption.length.toLocaleString("es-AR")}/{CAPTION_LIMIT.toLocaleString("es-AR")} · {hashtags} hashtags

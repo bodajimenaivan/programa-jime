@@ -1,5 +1,6 @@
 import "server-only";
 import { and, eq, gte, inArray, lte } from "drizzle-orm";
+import { hashtagStats } from "./hashtags";
 import { db, schema } from "./db";
 import type { Network } from "./db/schema";
 import { daysInMonth } from "./dates";
@@ -38,4 +39,16 @@ export function loadMetrics(clientId: string, month: string, networks: Network[]
     published.map((p) => ({ ...p, thumb: thumbs.get(p.id) ?? null })),
     span,
   );
+}
+
+/** Hashtags de las piezas del período (para ver cuáles rindieron mejor). */
+export function loadHashtagStats(clientId: string, month: string, span = 6) {
+  const from = `${monthsBack(month, span)[0]}-01`;
+  const to = `${month}-${String(daysInMonth(month)).padStart(2, "0")}`;
+  const rows = db
+    .select({ caption: schema.posts.caption, date: schema.posts.date, postMetrics: schema.posts.postMetrics })
+    .from(schema.posts)
+    .where(and(eq(schema.posts.clientId, clientId), gte(schema.posts.date, from), lte(schema.posts.date, to)))
+    .all();
+  return hashtagStats(rows);
 }

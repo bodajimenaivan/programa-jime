@@ -1,5 +1,6 @@
 import type { Network, PostFormat, PostMetrics, PostStatus } from "@/lib/db/schema";
-import { mutate } from "../api";
+import { mutate, rpc } from "../api";
+import { hashtagStats, type TagSource } from "@/lib/hashtags";
 
 export type PostInput = {
   id?: string;
@@ -29,3 +30,6 @@ export const setPostStatus = (id: string, status: PostStatus) => mutate<void>("s
 export const addTeamComment = (postId: string, body: string) => mutate<void>("addTeamComment", [postId, body]);
 export const savePostMetrics = (postId: string, metrics: PostMetrics) => mutate<void>("savePostMetrics", [postId, metrics]);
 export const duplicatePost = (id: string) => mutate<{ id: string }>("duplicatePost", [id]);
+
+// Solo lectura: el servidor manda los textos y el cálculo se hace acá.
+export const hashtagData = async (clientId: string) => hashtagStats(await rpc<TagSource[]>("hashtagData", [clientId]));

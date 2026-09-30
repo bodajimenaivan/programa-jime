@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { assertClientAccess, newId, requireUser } from "@/lib/auth";
 import { FORMAT_ORDER, NETWORK_ORDER, STATUS_LABEL, STATUS_ORDER } from "@/lib/constants";
@@ -9,6 +9,7 @@ import type { Network, PostFormat, PostMetrics, PostStatus } from "@/lib/db/sche
 import crypto from "node:crypto";
 import fs from "node:fs";
 import { deleteMedia, mediaPath } from "@/lib/storage";
+import { hashtagStats, type TagStats } from "@/lib/hashtags";
 
 export type PostInput = {
   id?: string;
@@ -271,4 +272,18 @@ export async function duplicatePost(id: string) {
 
   revalidatePath("/", "layout");
   return { id: newPostId };
+}
+
+/** Hashtags que usaste con un cliente y cómo rindieron (últimas 300 piezas). */
+export async function hashtagData(clientId: string): Promise<TagStats> {
+  const user = await requireUser();
+  assertClientAccess(user.workspaceId, clientId);
+  const rows = db
+    .select({ caption: schema.posts.caption, date: schema.posts.date, postMetrics: schema.posts.postMetrics })
+    .from(schema.posts)
+    .where(eq(schema.posts.clientId, clientId))
+    .orderBy(desc(schema.posts.date))
+    .limit(300)
+    .all();
+  return hashtagStats(rows);
 }

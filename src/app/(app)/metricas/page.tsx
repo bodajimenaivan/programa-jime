@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { requireClient } from "@/lib/auth";
-import { loadMetrics } from "@/lib/metrics";
+import { loadHashtagStats, loadMetrics } from "@/lib/metrics";
 import { monthKey, todayIn } from "@/lib/dates";
 import type { Network } from "@/lib/db/schema";
 import { MetricsView } from "./metrics-view";
@@ -28,6 +28,7 @@ export default async function MetricsPage(props: PageProps<"/metricas">) {
       red={red}
       data={data}
       formInitial={client.networks.map((n) => ({ network: n, ...forForm.byNetwork[n][0] }))}
+      hashtags={loadHashtagStats(client.id, month)}
     />
   );
 }
