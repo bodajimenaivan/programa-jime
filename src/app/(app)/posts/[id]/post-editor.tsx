@@ -18,6 +18,7 @@ import { MediaTray, type TrayItem } from "@/components/post/media-tray";
 import { CommentThread } from "@/components/post/comment-thread";
 import { useToast } from "@/components/ui/toast";
 import { CopyButton } from "@/components/ui/copy-button";
+import { EmojiTextarea } from "@/components/ui/emoji-textarea";
 import { PeoplePicker, type Person } from "@/components/team/people-picker";
 import { deletePost, duplicatePost, savePost, savePostMetrics } from "../../actions/posts";
 
@@ -252,16 +253,18 @@ export function PostEditor({
           </Section>
 
           <Section label="Texto de la publicación" action={<CopyButton text={caption} label="Copiar texto" />}>
-            <textarea
+            <EmojiTextarea
               className="field min-h-[150px] resize-y leading-relaxed"
               value={caption}
               maxLength={CAPTION_LIMIT}
-              onChange={(e) => setCaption(e.target.value)}
+              onChange={setCaption}
               placeholder="Escribí el texto que va a acompañar la publicación…"
+              footer={
+                <p className="text-right text-[12px] tabular-nums text-muted">
+                  {caption.length.toLocaleString("es-AR")}/{CAPTION_LIMIT.toLocaleString("es-AR")} · {hashtags} hashtags
+                </p>
+              }
             />
-            <p className="mt-1.5 text-right text-[12px] tabular-nums text-muted">
-              {caption.length.toLocaleString("es-AR")}/{CAPTION_LIMIT.toLocaleString("es-AR")} · {hashtags} hashtags
-            </p>
           </Section>
 
           <div className="grid grid-cols-2 gap-3">
