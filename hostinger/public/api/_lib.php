@@ -20,7 +20,9 @@ define('MAX_UPLOAD_BYTES', (int)($CFG['max_upload_mb'] ?? 1024) * 1024 * 1024);
 define('DEFAULT_TZ', $CFG['timezone'] ?? 'America/Argentina/Buenos_Aires');
 define('SESSION_COOKIE', 'grilla_session');
 define('CLIENT_COOKIE', 'grilla_client');
-define('SESSION_DAYS', 30);
+// La sesión no se corta sola: dura 400 días (el máximo que aceptan los navegadores)
+// y se renueva cada día que usás la app. Solo se cierra con "Salir".
+define('SESSION_DAYS', 400);
 
 const NETWORKS = ['instagram', 'tiktok', 'facebook', 'linkedin'];
 const FORMATS = ['post', 'carousel', 'reel', 'story', 'tiktok'];
@@ -207,10 +209,20 @@ function current_user(): ?array
     if ($cached !== false) return $cached;
     $token = $_COOKIE[SESSION_COOKIE] ?? '';
     if (!$token) return $cached = null;
+    $id = hash_token($token);
     $u = one(
-        'SELECT u.* FROM g_sessions s JOIN g_users u ON u.id = s.user_id WHERE s.id = ? AND s.expires_at > ?',
-        [hash_token($token), now_ms()]
+        'SELECT u.*, s.expires_at AS session_expires FROM g_sessions s JOIN g_users u ON u.id = s.user_id WHERE s.id = ? AND s.expires_at > ?',
+        [$id, now_ms()]
     );
+    if (!$u) return $cached = null;
+    // Renovación (como mucho una vez por día): corre de nuevo los 400 días en la base y en la cookie.
+    $full = SESSION_DAYS * 86400 * 1000;
+    if ((int)$u['session_expires'] < now_ms() + $full - 86400 * 1000) {
+        $exp = now_ms() + $full;
+        q('UPDATE g_sessions SET expires_at = ? WHERE id = ?', [$exp, $id]);
+        if (!headers_sent()) set_cookie(SESSION_COOKIE, $token, (int)($exp / 1000));
+    }
+    unset($u['session_expires']);
     return $cached = $u;
 }
 
