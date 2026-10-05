@@ -11,9 +11,7 @@ const scrypt = promisify(crypto.scrypt) as (pw: string, salt: Buffer, len: numbe
 
 export const SESSION_COOKIE = "grilla_session";
 export const CLIENT_COOKIE = "grilla_client";
-// La sesión dura 400 días (el máximo de los navegadores) y se renueva al usarla: solo se cierra con "Salir".
-const SESSION_DAYS = 400;
-const DAY = 24 * 3600 * 1000;
+const SESSION_DAYS = 30;
 
 export function newId(bytes = 12) {
   return crypto.randomBytes(bytes).toString("base64url");
@@ -39,7 +37,7 @@ function hashToken(token: string) {
 
 export async function createSession(userId: string) {
   const token = crypto.randomBytes(32).toString("base64url");
-  const expiresAt = Date.now() + SESSION_DAYS * DAY;
+  const expiresAt = Date.now() + SESSION_DAYS * 24 * 3600 * 1000;
   db.insert(schema.sessions).values({ id: hashToken(token), userId, expiresAt }).run();
   const jar = await cookies();
   jar.set(SESSION_COOKIE, token, {
@@ -61,19 +59,13 @@ export async function destroySession() {
 /** Busca el usuario de un token de sesión (sirve también fuera de React, p. ej. en la ruta de subidas). */
 export function userFromToken(token: string | undefined | null) {
   if (!token) return null;
-  const id = hashToken(token);
   const row = db
-    .select({ user: schema.users, expiresAt: schema.sessions.expiresAt })
+    .select({ user: schema.users })
     .from(schema.sessions)
     .innerJoin(schema.users, eq(schema.users.id, schema.sessions.userId))
-    .where(and(eq(schema.sessions.id, id), gt(schema.sessions.expiresAt, Date.now())))
+    .where(and(eq(schema.sessions.id, hashToken(token)), gt(schema.sessions.expiresAt, Date.now())))
     .get();
-  if (!row) return null;
-  // Renovación diaria en la base (la cookie ya dura el máximo que permite el navegador).
-  if (row.expiresAt < Date.now() + (SESSION_DAYS - 1) * DAY) {
-    db.update(schema.sessions).set({ expiresAt: Date.now() + SESSION_DAYS * DAY }).where(eq(schema.sessions.id, id)).run();
-  }
-  return row.user;
+  return row?.user ?? null;
 }
 
 export function userFromCookieHeader(header: string | null) {
